@@ -46,7 +46,7 @@ export const SummarySnapshotBar: React.FC<SummarySnapshotBarProps> = ({
   };
 
   return (
-    <div className="bg-slate-900 border-b border-slate-800 px-4 py-3.5 sm:px-6">
+    <div className="panel-shell mx-auto max-w-7xl px-4 py-3.5 sm:px-6">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Left Target Info */}
         <div className="flex items-center gap-3">
@@ -59,7 +59,7 @@ export const SummarySnapshotBar: React.FC<SummarySnapshotBarProps> = ({
             </h2>
           </div>
           <div
-            className={`px-3 py-1 rounded-md border text-sm font-mono font-bold tracking-wider uppercase shadow-sm ${getRecommendationBadge(
+            className={`px-3 py-1 rounded-md text-sm font-mono font-bold tracking-wider uppercase shadow-sm ${getRecommendationBadge(
               snapshot.recommendation
             )}`}
           >

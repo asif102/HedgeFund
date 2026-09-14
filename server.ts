@@ -42,6 +42,122 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
+const commodityConfig = [
+  { name: "Gold", symbol: "GC=F", category: "Metals" },
+  { name: "Silver", symbol: "SI=F", category: "Metals" },
+  { name: "Crude Oil", symbol: "CL=F", category: "Energy" },
+  { name: "Natural Gas", symbol: "NG=F", category: "Energy" },
+  { name: "Copper", symbol: "HG=F", category: "Metals" },
+  { name: "Wheat", symbol: "ZW=F", category: "Agriculture" },
+] as const;
+
+const commodityFallbacks: Record<string, { price: number; change: number; changePct: number; range: string; volume: string; insight: string }> = {
+  Gold: { price: 2468.4, change: 18.6, changePct: 0.76, range: "$2,446 - $2,475", volume: "18.2k contracts", insight: "Gold remains supported by softer real yields and persistent central-bank demand, while resistance is clustering near the recent highs." },
+  Silver: { price: 29.23, change: 0.42, changePct: 1.46, range: "$28.60 - $29.70", volume: "11.4k contracts", insight: "Silver is outperforming gold on a relative basis as industrial demand and inflation hedging remain constructive." },
+  "Crude Oil": { price: 74.68, change: -0.91, changePct: -1.2, range: "$73.30 - $76.10", volume: "22.8k contracts", insight: "Oil is trading in a softer range as supply expectations normalize and demand growth remains uneven across regions." },
+  "Natural Gas": { price: 2.81, change: 0.07, changePct: 2.56, range: "$2.60 - $2.92", volume: "9.1k contracts", insight: "Weather-driven supply tightness continues to support gas prices, though volatility remains elevated as storage signals shift." },
+  Copper: { price: 4.64, change: 0.08, changePct: 1.75, range: "$4.52 - $4.71", volume: "7.3k contracts", insight: "Copper remains constructive on infrastructure and electrification demand, with the market watching Chinese industrial signals closely." },
+  Wheat: { price: 607.5, change: -4.2, changePct: -0.69, range: "$600.20 - $617.40", volume: "5.6k contracts", insight: "Wheat is under mild pressure from improving crop conditions, but export and weather risks keep the risk premium in place." },
+};
+
+async function fetchCommodityQuote(symbol: string, timeoutMs = 5000): Promise<{
+  price: number;
+  change: number;
+  changePct: number;
+  volume: number;
+  high: number;
+  low: number;
+  previousClose: number;
+} | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "application/json",
+      },
+    });
+    clearTimeout(timer);
+
+    if (!response.ok) return null;
+
+    const body = await response.json();
+    const meta = body?.chart?.result?.[0]?.meta;
+    if (!meta || typeof meta.regularMarketPrice !== "number") return null;
+
+    const price = meta.regularMarketPrice;
+    const previousClose = meta.chartPreviousClose || meta.previousClose || price;
+    const change = Number((price - previousClose).toFixed(2));
+    const changePct = Number(((change / previousClose) * 100).toFixed(2));
+    const volume = Number(meta.regularMarketVolume || 0);
+    const high = Number(meta.regularMarketDayHigh || price);
+    const low = Number(meta.regularMarketDayLow || price);
+
+    return { price, change, changePct, volume, high, low, previousClose };
+  } catch {
+    return null;
+  }
+}
+
+app.get("/api/commodities", async (_req, res) => {
+  try {
+    const items = await Promise.all(
+      commodityConfig.map(async ({ name, symbol, category }) => {
+        const quote = await fetchCommodityQuote(symbol);
+        const fallback = commodityFallbacks[name];
+
+        if (!quote) {
+          return {
+            name,
+            symbol,
+            category,
+            ...fallback,
+            status: "fallback",
+          };
+        }
+
+        const range = `$${quote.low.toFixed(2)} - $${quote.high.toFixed(2)}`;
+        const volumeLabel = `${(quote.volume / 1000).toFixed(1)}k contracts`;
+
+        return {
+          name,
+          symbol,
+          category,
+          price: quote.price,
+          change: quote.change,
+          changePct: quote.changePct,
+          range,
+          volume: volumeLabel,
+          insight: fallback.insight,
+          status: "live",
+        };
+      })
+    );
+
+    res.json({
+      ok: true,
+      items,
+      source: "Yahoo Finance",
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      ok: false,
+      error: error?.message || "Failed to fetch commodity market data",
+      items: Object.entries(commodityFallbacks).map(([name, fallback]) => ({
+        name,
+        symbol: commodityConfig.find((item) => item.name === name)?.symbol ?? name,
+        category: commodityConfig.find((item) => item.name === name)?.category ?? "Metals",
+        ...fallback,
+        status: "fallback",
+      })),
+    });
+  }
+});
+
 // Live Market Data Feed Endpoint
 app.get("/api/market-data", (req, res) => {
   const symbol = ((req.query.symbol as string) || "NVDA").toUpperCase();

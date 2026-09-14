@@ -132,7 +132,7 @@ export const AgentRosterHeader: React.FC<AgentRosterHeaderProps> = ({
   };
 
   return (
-    <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
+    <header className="bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6">
         {/* Top Header Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-slate-800/80">
