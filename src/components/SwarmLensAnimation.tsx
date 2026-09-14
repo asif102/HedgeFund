@@ -652,53 +652,53 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
       {/* ========================================================================= */}
       {/* 1. TOP HUD HEADER BAR (Matching GROK DESK / SWARM ONLINE in reference)   */}
       {/* ========================================================================= */}
-      <div className="border-b border-slate-800/90 bg-[#080d1a] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="border-b border-slate-800/90 bg-gradient-to-r from-[#080d1a] via-[#0a0f1f] to-[#080d1a] px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs shadow-lg shadow-cyan-500/5 animate-fade-in">
         {/* Left: Branding & Core Swarm Status */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 transition-all duration-300 hover:gap-4">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]"></span>
-            <span className="font-bold text-white tracking-wider text-sm flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_12px_#10b981,0_0_24px_#10b981] duration-2000"></span>
+            <span className="font-bold text-white tracking-wider text-sm flex items-center gap-1.5 transition-all duration-300">
               QUANTUM DESK <span className="text-slate-500 font-normal">|</span>
-              <span className="text-emerald-400 font-semibold">SWARM ONLINE</span>
+              <span className="text-emerald-400 font-semibold drop-shadow-[0_0_4px_#10b981]">SWARM ONLINE</span>
             </span>
           </div>
 
-          <div className="hidden md:flex items-center gap-2 pl-3 border-l border-slate-800 text-[11px] text-slate-400">
-            <span className="px-1.5 py-0.5 rounded bg-slate-800/80 text-cyan-300 font-bold">
+          <div className="hidden md:flex items-center gap-2 pl-3 border-l border-slate-800/60 text-[11px] text-slate-400 transition-colors duration-300">
+            <span className="px-2 py-1 rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-800/40 text-cyan-300 font-bold border border-cyan-500/20 transition-all duration-300 hover:border-cyan-500/40 hover:shadow-[0_0_8px_rgba(34,211,238,0.1)]">
               SIX AGENTS, ONE BOOK
             </span>
-            <span>TARGET: <strong className="text-white">{activeSymbol}</strong></span>
+            <span className="transition-colors duration-300">TARGET: <strong className="text-white drop-shadow-[0_0_2px_#0ea5e9]">{activeSymbol}</strong></span>
           </div>
         </div>
 
         {/* Center: Live Quant Arbitrage & Compute Cost Metrics */}
-        <div className="hidden lg:flex items-center gap-5 text-[11px]">
-          <div className="flex flex-col items-end">
-            <span className="text-slate-400 text-[10px] uppercase">Human Desk Est.</span>
-            <span className="text-slate-300 font-bold">$318k / YR</span>
+        <div className="hidden lg:flex items-center gap-6 text-[11px] transition-all duration-300">
+          <div className="flex flex-col items-end gap-0.5 transition-all duration-300 hover:gap-1">
+            <span className="text-slate-500 text-[10px] uppercase tracking-wider">Human Desk Est.</span>
+            <span className="text-slate-300 font-bold text-sm">$318k / YR</span>
           </div>
-          <div className="w-px h-5 bg-slate-800"></div>
-          <div className="flex flex-col items-end">
-            <span className="text-cyan-400 text-[10px] uppercase">Swarm Run Cost</span>
-            <span className="text-cyan-300 font-bold">$3.1k / YR</span>
+          <div className="w-px h-5 bg-gradient-to-b from-slate-800 via-slate-700 to-slate-800 opacity-60"></div>
+          <div className="flex flex-col items-end gap-0.5 transition-all duration-300 hover:gap-1">
+            <span className="text-cyan-500 text-[10px] uppercase tracking-wider">Swarm Run Cost</span>
+            <span className="text-cyan-300 font-bold text-sm drop-shadow-[0_0_4px_#06b6d4]">$3.1k / YR</span>
           </div>
-          <div className="w-px h-5 bg-slate-800"></div>
-          <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-[11px]">
-            <Zap className="w-3 h-3 text-emerald-400" />
+          <div className="w-px h-5 bg-gradient-to-b from-slate-800 via-slate-700 to-slate-800 opacity-60"></div>
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gradient-to-r from-emerald-500/15 to-emerald-500/5 border border-emerald-500/40 text-emerald-400 font-bold text-[11px] transition-all duration-300 hover:border-emerald-500/60 hover:shadow-[0_0_12px_rgba(16,185,129,0.15)]">
+            <Zap className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
             <span>102x CHEAPER</span>
           </div>
         </div>
 
         {/* Right: Live UTC Timestamp & Execution Controls */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300 font-mono text-xs">
+        <div className="flex items-center gap-2.5 transition-all duration-300">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800/80 text-slate-300 font-mono text-xs transition-all duration-300 hover:border-slate-700 hover:shadow-[0_0_8px_rgba(30,41,59,0.5)]">
             <Clock className="w-3.5 h-3.5 text-slate-400" />
             <span>19:45:52 UTC</span>
           </div>
 
           <button
             onClick={triggerDebateBurst}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/50 text-cyan-300 hover:text-white transition active:scale-95 text-xs font-semibold"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500/25 to-cyan-500/10 hover:from-cyan-500/35 hover:to-cyan-500/20 border border-cyan-500/50 hover:border-cyan-500/70 text-cyan-300 hover:text-cyan-100 transition-all duration-300 active:scale-95 text-xs font-semibold shadow-[0_0_12px_rgba(34,211,238,0.1)] hover:shadow-[0_0_16px_rgba(34,211,238,0.2)]"
             title="Trigger multi-agent debate tensor packet exchange"
           >
             <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
@@ -707,7 +707,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
 
           <button
             onClick={() => setIsFullscreen(!isFullscreen)}
-            className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition"
+            className="p-1.5 rounded-lg hover:bg-slate-800/60 text-slate-400 hover:text-white transition-all duration-300 hover:shadow-[0_0_8px_rgba(71,85,105,0.3)]"
             title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Swarm Terminal"}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -718,7 +718,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
       {/* ========================================================================= */}
       {/* 2. PIPELINE RIBBON STRIP (Matching stages 01-06 in reference image)      */}
       {/* ========================================================================= */}
-      <div className="border-b border-slate-800/80 bg-[#070b16] px-4 py-2 overflow-x-auto scrollbar-none">
+      <div className="border-b border-slate-800/80 bg-gradient-to-r from-[#070b16] via-slate-900/30 to-[#070b16] px-4 py-2.5 overflow-x-auto scrollbar-none shadow-md shadow-slate-950/30">
         <div className="flex items-center gap-2 min-w-max">
           {stages.map((stg, i) => {
             const isActive = activeStage === i;
@@ -741,15 +741,16 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
                   style={{ backgroundColor: stg.color }}
                 ></div>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-[10px] text-slate-500 font-bold">{stg.num}</span>
-                  <span className="text-xs font-bold text-white tracking-wide">{stg.name}</span>
-                  <span className="text-[10px] text-slate-400">[{stg.agent}]</span>
+                  <span className="text-[10px] text-slate-600 font-bold transition-colors duration-300 group-hover:text-slate-500">{stg.num}</span>
+                  <span className="text-xs font-bold text-white tracking-wide transition-colors duration-300 group-hover:text-slate-100">{stg.name}</span>
+                  <span className="text-[10px] text-slate-500 transition-colors duration-300 group-hover:text-slate-400">[{stg.agent}]</span>
                 </div>
                 <span
-                  className="text-[9px] font-bold px-1.5 py-0.2 rounded uppercase"
+                  className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase transition-all duration-300"
                   style={{
-                    backgroundColor: isActive ? stg.color + "33" : "rgba(30, 41, 59, 0.5)",
+                    backgroundColor: isActive ? stg.color + "40" : "rgba(30, 41, 59, 0.5)",
                     color: isActive ? stg.color : "#94a3b8",
+                    boxShadow: isActive ? `0 0 8px ${stg.color}40` : "none",
                   }}
                 >
                   {isActive ? "ACTIVE" : stg.status}
@@ -925,34 +926,38 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
               >
                 {/* Colored Icon Pill */}
                 <div
-                  className="w-7 h-7 rounded-lg flex items-center justify-center shadow-inner"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center shadow-inner transition-all duration-300 group-hover:shadow-[inset_0_0_8px] border transition-colors duration-300"
                   style={{
                     backgroundColor: agent.badgeBg,
-                    border: `1px solid ${agent.color}66`,
+                    border: `1.5px solid ${agent.color}77`,
+                    boxShadow: `inset 0 1px 3px ${agent.color}33, 0 0 8px ${agent.color}22`,
                   }}
                 >
                   {agent.icon}
                 </div>
 
                 {/* Node Title & Metric */}
-                <div className="flex flex-col text-left">
-                  <div className="flex items-center gap-1">
-                    <span className="text-[11px] font-bold text-white tracking-wide">
+                <div className="flex flex-col text-left gap-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-white tracking-wide transition-colors duration-300 group-hover:text-slate-100">
                       {agent.codename}
                     </span>
                     <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: agent.color }}
+                      className="w-2 h-2 rounded-full shadow-[0_0_4px]"
+                      style={{
+                        backgroundColor: agent.color,
+                        boxShadow: `0 0 6px ${agent.color}77`,
+                      }}
                     ></span>
                   </div>
-                  <span className="text-[9px] text-slate-400 whitespace-nowrap">
-                    {agent.metricLabel}: <strong className="text-slate-200">{agent.metricValue}</strong>
+                  <span className="text-[9px] text-slate-400 whitespace-nowrap transition-colors duration-300 group-hover:text-slate-300">
+                    {agent.metricLabel}: <strong className="text-slate-200 transition-colors duration-300 group-hover:text-white drop-shadow-[0_0_2px]">{agent.metricValue}</strong>
                   </span>
                 </div>
               </div>
 
               {/* Hover Thought Callout */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 p-2 rounded-lg bg-slate-900/95 border border-slate-700 shadow-2xl text-[10px] text-slate-300 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-40">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-56 p-3 rounded-lg bg-gradient-to-b from-slate-900/98 to-slate-950/95 border border-slate-700/80 shadow-2xl shadow-slate-950/60 text-[10px] text-slate-300 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 z-40 backdrop-blur-sm">
                 <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 pb-1 border-b border-slate-800">
                   <span style={{ color: agent.color }}>{agent.name}</span>
                   <span className="uppercase text-emerald-400">{agent.status}</span>
@@ -967,12 +972,12 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
         })}
 
         {/* Central Core Label Pill ("THE LENS") */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-12 pointer-events-none text-center z-10">
-          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-[10px] text-slate-300 font-semibold shadow-md">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
-            <span>THE LENS • BAYESIAN CORE</span>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-12 pointer-events-none text-center z-10 animate-fade-in">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-slate-900/95 to-slate-950/90 border border-slate-700/80 text-[10px] text-slate-300 font-semibold shadow-lg shadow-cyan-500/10 backdrop-blur-sm transition-all duration-300 hover:border-cyan-400/50 hover:shadow-[0_0_16px_rgba(34,211,238,0.15)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_4px_#06b6d4]"></span>
+            <span className="drop-shadow-[0_0_2px_#0ea5e9]">THE LENS • BAYESIAN CORE</span>
           </div>
-          <p className="text-[9px] text-slate-500 pt-0.5">
+          <p className="text-[9px] text-slate-500 pt-1 transition-colors duration-300 hover:text-slate-400">
             TAPE IN • 2,048 FUTURES OUT
           </p>
         </div>
@@ -981,90 +986,94 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
       {/* ========================================================================= */}
       {/* 4. BOTTOM TELEMETRY GRID (Matching 5 Quant Panels in reference image)     */}
       {/* ========================================================================= */}
-      <div className="border-t border-slate-800/90 bg-[#060a14] p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+      <div className="border-t border-slate-800/90 bg-gradient-to-b from-[#060a14] to-[#050811] p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-xs shadow-inner shadow-slate-950/50 animate-fade-in animation-delay-200">
         {/* PANEL 1: Swarm PnL & Win Rate */}
-        <div className="p-3 rounded-lg bg-slate-900/50 border border-slate-800/80 flex flex-col justify-between space-y-2">
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
-            <span className="flex items-center gap-1.5 text-slate-300 font-bold">
+        <div className="p-4 rounded-lg bg-gradient-to-br from-slate-900/60 to-slate-900/30 border border-slate-800/70 hover:border-slate-700/80 flex flex-col justify-between space-y-2.5 transition-all duration-300 hover:shadow-[0_0_12px_rgba(16,185,129,0.1)] hover:bg-gradient-to-br hover:from-slate-900/70 hover:to-slate-900/40">
+          <div className="flex items-center justify-between text-[11px] text-slate-400 transition-colors duration-300">
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold transition-colors duration-300">
               <Activity className="w-3.5 h-3.5 text-emerald-400" /> SWARM PNL
             </span>
-            <span className="text-[9px] text-emerald-400 font-semibold px-1.5 py-0.2 rounded bg-emerald-500/10">
+            <span className="text-[9px] text-emerald-400 font-semibold px-2 py-0.5 rounded-md bg-gradient-to-r from-emerald-500/20 to-emerald-500/5 border border-emerald-500/30 transition-all duration-300 hover:border-emerald-500/50 hover:shadow-[0_0_6px_rgba(16,185,129,0.2)]">
               RUNNING 171D
             </span>
           </div>
 
-          <div>
-            <div className="text-xl font-black text-emerald-400 tracking-tight">
+          <div className="space-y-1.5">
+            <div className="text-2xl font-black text-emerald-400 tracking-tight transition-all duration-300 drop-shadow-[0_0_8px_#10b981]">
               ${pnlValue.toLocaleString()}
             </div>
-            <div className="flex items-center gap-2 text-[10px] text-slate-400 pt-0.5">
-              <span>ROI: <strong className="text-emerald-300">+17,177%</strong></span>
-              <span>•</span>
-              <span>SEED: $1.4k</span>
+            <div className="flex items-center gap-3 text-[10px] text-slate-400 pt-0.5 flex-wrap">
+              <span className="transition-all duration-300">ROI: <strong className="text-emerald-300 drop-shadow-[0_0_2px_#10b981]">+17,177%</strong></span>
+              <span className="text-slate-700">•</span>
+              <span className="transition-all duration-300">SEED: <strong className="text-slate-300">$1.4k</strong></span>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-1 text-[9px] text-slate-400 border-t border-slate-800/80 pt-1.5">
-            <div>
-              <span className="text-slate-500 block">TICKETS</span>
-              <strong className="text-slate-200">101,639</strong>
+          <div className="grid grid-cols-3 gap-2 text-[9px] text-slate-400 border-t border-slate-800/60 pt-2.5 transition-all duration-300">
+            <div className="transition-all duration-300 hover:text-slate-300">
+              <span className="text-slate-500 block text-[8px] uppercase tracking-wider">Tickets</span>
+              <strong className="text-slate-200 transition-colors duration-300">101,639</strong>
             </div>
-            <div>
-              <span className="text-slate-500 block">WIN RATE</span>
-              <strong className="text-emerald-400">{winRate}%</strong>
+            <div className="transition-all duration-300 hover:text-emerald-300">
+              <span className="text-slate-500 block text-[8px] uppercase tracking-wider">Win Rate</span>
+              <strong className="text-emerald-400 drop-shadow-[0_0_2px_#10b981] transition-colors duration-300">{winRate}%</strong>
             </div>
-            <div>
-              <span className="text-slate-500 block">MAX DD</span>
-              <strong className="text-rose-400">4.2%</strong>
+            <div className="transition-all duration-300 hover:text-rose-300">
+              <span className="text-slate-500 block text-[8px] uppercase tracking-wider">Max DD</span>
+              <strong className="text-rose-400 transition-colors duration-300">4.2%</strong>
             </div>
           </div>
         </div>
 
         {/* PANEL 2: Live Price & Oracle Feed */}
-        <div className="p-3 rounded-lg bg-slate-900/50 border border-slate-800/80 flex flex-col justify-between space-y-2">
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
-            <span className="flex items-center gap-1.5 text-slate-300 font-bold">
+        <div className="p-4 rounded-lg bg-gradient-to-br from-slate-900/60 to-slate-900/30 border border-slate-800/70 hover:border-slate-700/80 flex flex-col justify-between space-y-2.5 transition-all duration-300 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] hover:bg-gradient-to-br hover:from-slate-900/70 hover:to-slate-900/40">
+          <div className="flex items-center justify-between text-[11px] text-slate-400 transition-colors duration-300">
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold transition-colors duration-300">
               <TrendingUp className="w-3.5 h-3.5 text-cyan-400" /> {activeSymbol} / USD
             </span>
-            <span className="text-[9px] text-cyan-400 font-semibold">5M CHAINLINK</span>
+            <span className="text-[9px] text-cyan-400 font-semibold px-2 py-0.5 rounded-md bg-gradient-to-r from-cyan-500/20 to-cyan-500/5 border border-cyan-500/30 transition-all duration-300 hover:border-cyan-500/50 hover:shadow-[0_0_6px_rgba(34,211,238,0.2)]">
+              5M CHAINLINK
+            </span>
           </div>
 
-          <div>
-            <div className="text-xl font-black text-white tracking-tight flex items-baseline gap-2">
+          <div className="space-y-1.5">
+            <div className="text-2xl font-black text-white tracking-tight flex items-baseline gap-2.5 transition-all duration-300 drop-shadow-[0_0_4px_#ffffff]">
               ${activePrice.toFixed(2)}
-              <span className="text-xs font-semibold text-emerald-400">
+              <span className="text-xs font-semibold text-emerald-400 drop-shadow-[0_0_2px_#10b981] transition-colors duration-300">
                 {quote?.changePercent ? `${quote.changePercent > 0 ? "+" : ""}${quote.changePercent}%` : "+0.85%"}
               </span>
             </div>
-            <div className="text-[10px] text-slate-400 pt-0.5">
-              VWAP: <strong className="text-slate-300">${quote?.vwap ? quote.vwap.toFixed(2) : (activePrice * 0.998).toFixed(2)}</strong>
+            <div className="text-[10px] text-slate-400 pt-0.5 transition-colors duration-300">
+              VWAP: <strong className="text-slate-300 transition-colors duration-300">${quote?.vwap ? quote.vwap.toFixed(2) : (activePrice * 0.998).toFixed(2)}</strong>
             </div>
           </div>
 
           {/* Micro Mini Sparkline Bar */}
-          <div className="border-t border-slate-800/80 pt-1.5 space-y-1">
-            <div className="flex justify-between text-[9px] text-slate-500">
-              <span>52W LOW: ${quote?.week52Low || (activePrice * 0.82).toFixed(2)}</span>
-              <span>52W HIGH: ${quote?.week52High || (activePrice * 1.18).toFixed(2)}</span>
+          <div className="border-t border-slate-800/60 pt-2.5 space-y-2 transition-all duration-300">
+            <div className="flex justify-between text-[9px] text-slate-500 transition-colors duration-300">
+              <span>52W LOW: <strong className="text-slate-400">${quote?.week52Low || (activePrice * 0.82).toFixed(2)}</strong></span>
+              <span>52W HIGH: <strong className="text-slate-400">${quote?.week52High || (activePrice * 1.18).toFixed(2)}</strong></span>
             </div>
-            <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden flex">
-              <div className="bg-emerald-500 h-full w-[70%]"></div>
-              <div className="bg-rose-500 h-full w-[30%]"></div>
+            <div className="w-full bg-slate-800/60 h-1.5 rounded-full overflow-hidden flex transition-all duration-300 hover:bg-slate-800/80">
+              <div className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full w-[70%] transition-all duration-300 hover:shadow-[inset_0_0_4px_rgba(16,185,129,0.3)]"></div>
+              <div className="bg-gradient-to-r from-rose-500 to-rose-400 h-full w-[30%] transition-all duration-300 hover:shadow-[inset_0_0_4px_rgba(244,63,94,0.3)]"></div>
             </div>
           </div>
         </div>
 
         {/* PANEL 3: Bayesian Update Curve */}
-        <div className="p-3 rounded-lg bg-slate-900/50 border border-slate-800/80 flex flex-col justify-between space-y-2">
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
-            <span className="flex items-center gap-1.5 text-slate-300 font-bold">
+        <div className="p-4 rounded-lg bg-gradient-to-br from-slate-900/60 to-slate-900/30 border border-slate-800/70 hover:border-slate-700/80 flex flex-col justify-between space-y-2.5 transition-all duration-300 hover:shadow-[0_0_12px_rgba(147,51,234,0.1)] hover:bg-gradient-to-br hover:from-slate-900/70 hover:to-slate-900/40">
+          <div className="flex items-center justify-between text-[11px] text-slate-400 transition-colors duration-300">
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold transition-colors duration-300">
               <BarChart2 className="w-3.5 h-3.5 text-purple-400" /> BAYESIAN UPDATE
             </span>
-            <span className="text-[9px] text-purple-300">PRIOR • BOOK</span>
+            <span className="text-[9px] text-purple-300 px-2 py-0.5 rounded-md bg-gradient-to-r from-purple-500/20 to-purple-500/5 border border-purple-500/30 transition-all duration-300 hover:border-purple-500/50">
+              PRIOR • BOOK
+            </span>
           </div>
 
           {/* SVG Gaussian Distribution Curves (Prior vs Posterior) */}
-          <div className="relative h-14 w-full flex items-end">
+          <div className="relative h-16 w-full flex items-end transition-all duration-300 hover:opacity-100 opacity-95">
             <svg className="w-full h-full overflow-visible" viewBox="0 0 100 40">
               {/* Prior Curve (Grey) */}
               <path
@@ -1073,51 +1082,55 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
                 stroke="#64748b"
                 strokeWidth="1.5"
                 strokeDasharray="2,2"
+                opacity="0.7"
               />
               {/* Posterior Curve (Glowing Green Shifted Right) */}
               <path
                 d="M 15,38 Q 50,38 65,4 Q 80,38 98,38"
-                fill="rgba(16, 185, 129, 0.15)"
+                fill="rgba(16, 185, 129, 0.2)"
                 stroke="#10b981"
-                strokeWidth="2"
+                strokeWidth="2.5"
+                style={{ filter: "drop-shadow(0 0 2px #10b981)" }}
               />
               {/* Target Price Marker */}
-              <line x1="65" y1="2" x2="65" y2="38" stroke="#38bdf8" strokeWidth="1" strokeDasharray="1,1" />
+              <line x1="65" y1="2" x2="65" y2="38" stroke="#38bdf8" strokeWidth="1.5" strokeDasharray="2,3" opacity="0.8" />
             </svg>
-            <span className="absolute right-1 top-0 text-[8px] font-bold text-cyan-400">
+            <span className="absolute right-1 top-0.5 text-[8px] font-bold text-cyan-400 transition-all duration-300 drop-shadow-[0_0_4px_#06b6d4]">
               +14.2% SHIFT
             </span>
           </div>
 
-          <div className="flex items-center justify-between text-[9px] text-slate-400 border-t border-slate-800/80 pt-1">
-            <span>PRIOR: 50.0%</span>
-            <span className="text-emerald-400 font-bold">POSTERIOR: {posteriorProbability}%</span>
+          <div className="flex items-center justify-between text-[9px] text-slate-400 border-t border-slate-800/60 pt-2 transition-all duration-300">
+            <span className="transition-colors duration-300">PRIOR: <strong className="text-slate-300">50.0%</strong></span>
+            <span className="text-emerald-400 font-bold drop-shadow-[0_0_2px_#10b981] transition-all duration-300">POSTERIOR: {posteriorProbability}%</span>
           </div>
         </div>
 
         {/* PANEL 4: Streaming Multi-Agent Packet Activity Log */}
-        <div className="p-3 rounded-lg bg-slate-900/50 border border-slate-800/80 flex flex-col justify-between space-y-1.5 md:col-span-2 lg:col-span-1">
-          <div className="flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800 pb-1">
-            <span className="flex items-center gap-1.5 text-slate-300 font-bold">
-              <Terminal className="w-3.5 h-3.5 text-cyan-400" /> PACKET STREAM
+        <div className="p-4 rounded-lg bg-gradient-to-br from-slate-900/60 to-slate-900/30 border border-slate-800/70 hover:border-slate-700/80 flex flex-col justify-between space-y-2 md:col-span-2 lg:col-span-1 transition-all duration-300 hover:shadow-[0_0_12px_rgba(34,211,238,0.1)] hover:bg-gradient-to-br hover:from-slate-900/70 hover:to-slate-900/40">
+          <div className="flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800/60 pb-2 transition-colors duration-300">
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold transition-colors duration-300">
+              <Terminal className="w-3.5 h-3.5 text-cyan-400 animate-pulse" /> PACKET STREAM
             </span>
-            <span className="text-[9px] text-slate-500">6 AGENTS</span>
+            <span className="text-[9px] text-slate-500 px-2 py-0.5 rounded-md bg-slate-800/40 border border-slate-700/40 transition-colors duration-300">
+              6 AGENTS
+            </span>
           </div>
 
           {/* Monospace Scrolling Log Rows */}
-          <div className="space-y-1 h-20 overflow-y-auto scrollbar-none text-[9px]">
-            {activityLogs.slice(0, 4).map((log) => (
-              <div key={log.id} className="flex items-center justify-between gap-1 leading-tight">
-                <span className="font-bold whitespace-nowrap" style={{ color: log.agentColor }}>
+          <div className="space-y-1.5 h-20 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-800/30 text-[9px] transition-all duration-300">
+            {activityLogs.slice(0, 4).map((log, idx) => (
+              <div key={log.id} className="flex items-center justify-between gap-2 leading-tight p-1 rounded transition-all duration-300 hover:bg-slate-800/30 hover:px-1.5" style={{ animationDelay: `${idx * 50}ms` }}>
+                <span className="font-bold whitespace-nowrap transition-all duration-300 drop-shadow-[0_0_2px]" style={{ color: log.agentColor }}>
                   {log.agent}
                 </span>
-                <span className="text-slate-400 truncate flex-1 pl-1">
+                <span className="text-slate-400 truncate flex-1 px-1 transition-colors duration-300 hover:text-slate-300">
                   {log.detail}
                 </span>
                 {log.delta && (
                   <span
-                    className={`font-mono font-bold whitespace-nowrap ${
-                      log.deltaPositive ? "text-emerald-400" : "text-rose-400"
+                    className={`font-mono font-bold whitespace-nowrap transition-all duration-300 drop-shadow-[0_0_2px] ${
+                      log.deltaPositive ? "text-emerald-400 drop-shadow-[0_0_3px_#10b981]" : "text-rose-400 drop-shadow-[0_0_3px_#f43f5e]"
                     }`}
                   >
                     {log.delta}
@@ -1127,23 +1140,25 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
             ))}
           </div>
 
-          <div className="text-[8px] text-slate-500 border-t border-slate-800/80 pt-1 flex justify-between">
-            <span>PACKETS: 1,420/s</span>
-            <span className="text-emerald-400">0 DROPS</span>
+          <div className="text-[8px] text-slate-500 border-t border-slate-800/60 pt-2 flex justify-between transition-colors duration-300">
+            <span className="transition-colors duration-300">PACKETS: <strong className="text-slate-400">1,420/s</strong></span>
+            <span className="text-emerald-400 font-semibold transition-all duration-300 drop-shadow-[0_0_2px_#10b981]">0 DROPS</span>
           </div>
         </div>
 
         {/* PANEL 5: Signal Feature Heatmap / Spectrogram */}
-        <div className="p-3 rounded-lg bg-slate-900/50 border border-slate-800/80 flex flex-col justify-between space-y-2">
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
-            <span className="flex items-center gap-1.5 text-slate-300 font-bold">
+        <div className="p-4 rounded-lg bg-gradient-to-br from-slate-900/60 to-slate-900/30 border border-slate-800/70 hover:border-slate-700/80 flex flex-col justify-between space-y-2.5 transition-all duration-300 hover:shadow-[0_0_12px_rgba(251,146,60,0.1)] hover:bg-gradient-to-br hover:from-slate-900/70 hover:to-slate-900/40">
+          <div className="flex items-center justify-between text-[11px] text-slate-400 transition-colors duration-300">
+            <span className="flex items-center gap-1.5 text-slate-300 font-bold transition-colors duration-300">
               <Layers className="w-3.5 h-3.5 text-amber-400" /> SPECTROGRAM
             </span>
-            <span className="text-[9px] text-amber-400 font-bold">18 FEATS</span>
+            <span className="text-[9px] text-amber-400 font-bold px-2 py-0.5 rounded-md bg-gradient-to-r from-amber-500/20 to-amber-500/5 border border-amber-500/30 transition-all duration-300 hover:border-amber-500/50">
+              18 FEATS
+            </span>
           </div>
 
           {/* Animated 3x6 Heatmap Grid Matrix */}
-          <div className="grid grid-cols-6 gap-1 h-12 py-1">
+          <div className="grid grid-cols-6 gap-1.5 h-14 py-1 transition-all duration-300 hover:gap-2">
             {[
               0.8, 0.9, 0.4, 0.2, 0.7, 0.95,
               0.3, 0.85, 0.9, 0.6, 0.1, 0.75,
@@ -1152,24 +1167,29 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
               // Color spectrum from deep blue to amber to green
               const bg =
                 val > 0.8
-                  ? "rgba(245, 158, 11, 0.85)"
+                  ? "rgba(251, 146, 60, 0.9)"
                   : val > 0.5
-                  ? "rgba(16, 185, 129, 0.65)"
+                  ? "rgba(16, 185, 129, 0.75)"
                   : "rgba(30, 41, 59, 0.8)";
+              const boxShadow = val > 0.8 
+                ? "0 0 8px rgba(251, 146, 60, 0.4)" 
+                : val > 0.5 
+                ? "0 0 6px rgba(16, 185, 129, 0.3)"
+                : "none";
               return (
                 <div
                   key={idx}
-                  className="rounded-xs transition-colors duration-500"
-                  style={{ backgroundColor: bg }}
+                  className="rounded-sm transition-all duration-300 hover:scale-110 cursor-pointer hover:shadow-lg"
+                  style={{ backgroundColor: bg, boxShadow }}
                   title={`Feature ${idx + 1}: ${(val * 100).toFixed(0)}%`}
                 ></div>
               );
             })}
           </div>
 
-          <div className="flex items-center justify-between text-[9px] text-slate-400 border-t border-slate-800/80 pt-1">
-            <span>REGIME: VOL-COMPRESSED</span>
-            <span className="text-cyan-400">HOT: 2/18</span>
+          <div className="flex items-center justify-between text-[9px] text-slate-400 border-t border-slate-800/60 pt-2 transition-all duration-300">
+            <span className="transition-colors duration-300">REGIME: <strong className="text-slate-300">VOL-COMPRESSED</strong></span>
+            <span className="text-amber-400 font-semibold transition-all duration-300 drop-shadow-[0_0_2px_#f59e0b]">HOT: 2/18</span>
           </div>
         </div>
       </div>
@@ -1177,12 +1197,12 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
       {/* ========================================================================= */}
       {/* 5. BOTTOM PLAYBACK SCRUBBER BAR (Matching Video Timeline in Reference)   */}
       {/* ========================================================================= */}
-      <div className="border-t border-slate-800 bg-[#050811] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="border-t border-slate-800/80 bg-gradient-to-r from-[#050811] via-slate-900/20 to-[#050811] px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs shadow-inner shadow-slate-950/50 transition-all duration-300">
         {/* Play/Pause & Reset */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={() => setIsPlaying(!isPlaying)}
-            className="p-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 hover:text-white transition"
+            className="p-2 rounded-lg bg-gradient-to-br from-cyan-500/30 to-cyan-500/10 hover:from-cyan-500/40 hover:to-cyan-500/20 border border-cyan-500/50 hover:border-cyan-500/70 text-cyan-300 hover:text-cyan-100 transition-all duration-300 hover:shadow-[0_0_12px_rgba(34,211,238,0.2)] active:scale-95"
             title={isPlaying ? "Pause Animation" : "Play Animation"}
           >
             {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -1194,41 +1214,41 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
               particlesRef.current = [];
               shockwavesRef.current = [];
             }}
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition"
+            className="p-2 rounded-lg hover:bg-slate-800/60 text-slate-400 hover:text-white transition-all duration-300 hover:shadow-[0_0_8px_rgba(71,85,105,0.3)]"
             title="Reset Timeline"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
 
           {/* Timeline Timecode */}
-          <span className="font-mono text-xs text-slate-300 pl-1">
+          <span className="font-mono text-xs text-slate-300 pl-2 transition-colors duration-300 hover:text-slate-100">
             0:{timelineSec < 10 ? `0${timelineSec}` : timelineSec} / 0:25
           </span>
         </div>
 
         {/* Scrubber Progress Bar */}
-        <div className="flex-1 max-w-md mx-2 flex items-center">
+        <div className="flex-1 max-w-md mx-3 flex items-center group transition-all duration-300">
           <input
             type="range"
             min="0"
             max="25"
             value={timelineSec}
             onChange={(e) => setTimelineSec(Number(e.target.value))}
-            className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+            className="w-full h-2 bg-gradient-to-r from-slate-800 to-slate-800/60 rounded-lg appearance-none cursor-pointer accent-cyan-400 transition-all duration-300 hover:h-2.5 hover:shadow-[0_0_8px_rgba(34,211,238,0.2)]"
           />
         </div>
 
         {/* Speed Controls (0.5x, 1x, 2x, 5x) */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] text-slate-500">SPEED:</span>
+        <div className="flex items-center gap-2 pl-2 border-l border-slate-800/60">
+          <span className="text-[11px] text-slate-500 transition-colors duration-300">SPEED:</span>
           {[0.5, 1, 2, 5].map((s) => (
             <button
               key={s}
               onClick={() => setSpeedMultiplier(s)}
-              className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
+              className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition-all duration-300 active:scale-95 ${
                 speedMultiplier === s
-                  ? "bg-cyan-500 text-slate-950"
-                  : "bg-slate-800/80 text-slate-400 hover:text-white"
+                  ? "bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 shadow-[0_0_12px_rgba(34,211,238,0.3)]"
+                  : "bg-slate-800/60 text-slate-400 hover:text-white hover:bg-slate-800 hover:shadow-[0_0_6px_rgba(71,85,105,0.2)]"
               }`}
             >
               {s}x
@@ -1238,25 +1258,25 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
 
         {/* Tab Shortcuts to Deep Dossiers */}
         {onNavigateToTab && (
-          <div className="hidden xl:flex items-center gap-2 pl-3 border-l border-slate-800 text-[11px]">
-            <span className="text-slate-500">DRILLDOWN:</span>
+          <div className="hidden xl:flex items-center gap-3 pl-3 border-l border-slate-800/60 text-[11px] transition-all duration-300">
+            <span className="text-slate-500 transition-colors duration-300">DRILLDOWN:</span>
             <button
               onClick={() => onNavigateToTab("phase1")}
-              className="hover:text-cyan-300 text-slate-400 transition underline"
+              className="hover:text-cyan-300 text-slate-400 transition-all duration-300 hover:drop-shadow-[0_0_4px_#06b6d4] underline underline-offset-2"
             >
               Phase 1
             </button>
-            <span className="text-slate-600">•</span>
+            <span className="text-slate-700/60">•</span>
             <button
               onClick={() => onNavigateToTab("phase2")}
-              className="hover:text-rose-300 text-slate-400 transition underline"
+              className="hover:text-rose-300 text-slate-400 transition-all duration-300 hover:drop-shadow-[0_0_4px_#f43f5e] underline underline-offset-2"
             >
               Phase 2 Debate
             </button>
-            <span className="text-slate-600">•</span>
+            <span className="text-slate-700/60">•</span>
             <button
               onClick={() => onNavigateToTab("memorandum")}
-              className="hover:text-amber-300 text-slate-400 transition underline"
+              className="hover:text-amber-300 text-slate-400 transition-all duration-300 hover:drop-shadow-[0_0_4px_#f59e0b] underline underline-offset-2"
             >
               Memorandum
             </button>

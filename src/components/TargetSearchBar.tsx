@@ -74,8 +74,8 @@ export const TargetSearchBar: React.FC<TargetSearchBarProps> = ({
   };
 
   return (
-    <div className="bg-slate-900/90 border-b border-slate-800 p-4 sm:p-5">
-      <div className="max-w-7xl mx-auto space-y-4">
+    <div className="panel-shell max-w-7xl mx-auto w-full p-4 sm:p-5">
+      <div className="space-y-4">
         {/* System Prompt Initialization Banner */}
         <div className="flex items-start sm:items-center justify-between gap-3 p-3 bg-slate-950/80 border border-amber-500/20 rounded-lg shadow-sm">
           <div className="flex items-center gap-2.5">

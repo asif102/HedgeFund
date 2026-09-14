@@ -20,6 +20,7 @@ import { HistoricalBacktester } from "./components/HistoricalBacktester";
 import { SwarmLensAnimation } from "./components/SwarmLensAnimation";
 import { IndianEquityDesk } from "./components/IndianEquityDesk";
 import { FinvizSectorRotation } from "./components/FinvizSectorRotation";
+import { CommodityDesk } from "./components/CommodityDesk";
 import {
   getLiveMarketQuote,
   getFinancialNewsFeed,
@@ -38,6 +39,7 @@ import {
   TrendingUp,
   Activity,
   Compass,
+  Coins,
 } from "lucide-react";
 
 function getTickerSymbol(target: string): string {
@@ -67,7 +69,7 @@ export default function App() {
     BENCHMARK_CASES["NVDA"]
   );
   const [activeTab, setActiveTab] = useState<
-    "swarm" | "memorandum" | "phase1" | "phase2" | "backtester" | "scenarios" | "news" | "india" | "rotation"
+    "swarm" | "memorandum" | "phase1" | "phase2" | "backtester" | "scenarios" | "news" | "india" | "rotation" | "commodities"
   >("swarm");
   const [activeAgentFilter, setActiveAgentFilter] = useState<AgentId | "all">("all");
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
@@ -471,6 +473,23 @@ export default function App() {
                 Finviz
               </span>
             </button>
+
+            {/* Tab: Commodity Desk */}
+            <button
+              id="tab-commodities"
+              onClick={() => setActiveTab("commodities")}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono font-medium transition whitespace-nowrap ${
+                activeTab === "commodities"
+                  ? "bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/25"
+                  : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+              }`}
+            >
+              <Coins className="w-3.5 h-3.5" />
+              <span>Commodity Desk</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 font-bold uppercase border border-amber-400/30">
+                Macro
+              </span>
+            </button>
           </nav>
 
           <div className="hidden lg:flex items-center gap-2 text-[11px] font-mono text-slate-400">
@@ -483,7 +502,7 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 sm:px-6">
         {isAnalyzing ? (
           <div className="space-y-6">
-            <div className="py-6 flex flex-col items-center justify-center text-center space-y-4 bg-slate-900/60 rounded-xl border border-slate-800 p-4">
+            <div className="panel-shell py-6 flex flex-col items-center justify-center text-center space-y-4 p-4">
               <div className="relative">
                 <div className="w-16 h-16 rounded-full border-4 border-slate-800 border-t-amber-500 animate-spin"></div>
                 <div className="absolute inset-0 flex items-center justify-center font-mono font-bold text-amber-400 text-base">
@@ -639,6 +658,8 @@ export default function App() {
                 }}
               />
             )}
+
+            {activeTab === "commodities" && <CommodityDesk />}
           </div>
         )}
       </main>
