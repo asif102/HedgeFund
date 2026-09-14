@@ -1,0 +1,7 @@
+{
+  "name": "Quantum Alpha Capital",
+  "description": "Multi-agent AI hedge fund featuring real-time market data feeds, Indian Equity Market (NSE/BSE) desk, LiveMint quantitative indicator models (LWTD, MWPL, Advance-Decline Ratio), multi-agent investment research, and historical strategy backtesting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
