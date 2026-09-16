@@ -547,6 +547,7 @@ export interface AutomatedWeeklyTrend {
   priorWeekMWPL?: number;
   mwplWeeklyChange?: number;
   mwplStatus?: string;
+  daysToExpiry?: number;
   currentADR?: number;
   adr4WeekAvg?: number;
   adrBreadthDivergence?: number;
