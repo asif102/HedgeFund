@@ -383,6 +383,28 @@ export interface IndianStockQuote {
   lastTradeTime?: string;
 }
 
+export interface IndianValueScreenerStock {
+  symbol: string;
+  name: string;
+  sector: string;
+  cmp: number;
+  peRatio: number;
+  pbRatio: number;
+  roePercent: number;
+  debtToEquity: number;
+  marketCapCr: number;
+  valueScore: number; // 0-100
+  valueRationale: string;
+  sourceUrl: string;
+}
+
+export interface IndianValueScreenerPayload {
+  screenerName: string;
+  source: string;
+  fetchedAt: string;
+  stocks: IndianValueScreenerStock[];
+}
+
 export interface IndianMarketBreadth {
   advances: number;
   declines: number;

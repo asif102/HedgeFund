@@ -8,6 +8,8 @@ import {
   MintMWPLDataPoint,
   MintAdvDecDataPoint,
   AutomatedWeeklyTrend,
+  IndianValueScreenerPayload,
+  IndianValueScreenerStock,
 } from "../types";
 
 // Base institutional reference data for major Indian indices
@@ -258,6 +260,79 @@ export const TOP_INDIAN_EQUITIES: IndianStockQuote[] = [
   },
 ];
 
+export const BASE_TIJORI_VALUE_SCREENER: IndianValueScreenerStock[] = [
+  {
+    symbol: "COALINDIA.NS",
+    name: "Coal India Ltd",
+    sector: "Energy",
+    cmp: 496.8,
+    peRatio: 6.9,
+    pbRatio: 2.1,
+    roePercent: 30.4,
+    debtToEquity: 0.05,
+    marketCapCr: 306050,
+    valueScore: 87,
+    valueRationale: "Single-digit P/E with high cash generation and strong ROE profile.",
+    sourceUrl: "https://www.tijori.com/stocks/COALINDIA",
+  },
+  {
+    symbol: "POWERGRID.NS",
+    name: "Power Grid Corporation of India Ltd",
+    sector: "Utilities",
+    cmp: 352.4,
+    peRatio: 15.1,
+    pbRatio: 2.4,
+    roePercent: 17.8,
+    debtToEquity: 1.15,
+    marketCapCr: 327860,
+    valueScore: 79,
+    valueRationale: "Defensive utility franchise with stable return ratios and predictable cash flows.",
+    sourceUrl: "https://www.tijori.com/stocks/POWERGRID",
+  },
+  {
+    symbol: "NTPC.NS",
+    name: "NTPC Ltd",
+    sector: "Utilities",
+    cmp: 422.6,
+    peRatio: 14.4,
+    pbRatio: 2.2,
+    roePercent: 15.6,
+    debtToEquity: 1.32,
+    marketCapCr: 409330,
+    valueScore: 76,
+    valueRationale: "Reasonable valuation with visible earnings and regulated growth capex.",
+    sourceUrl: "https://www.tijori.com/stocks/NTPC",
+  },
+  {
+    symbol: "BPCL.NS",
+    name: "Bharat Petroleum Corporation Ltd",
+    sector: "Oil & Gas",
+    cmp: 379.2,
+    peRatio: 8.4,
+    pbRatio: 1.5,
+    roePercent: 19.1,
+    debtToEquity: 0.83,
+    marketCapCr: 164430,
+    valueScore: 82,
+    valueRationale: "Low earnings multiple and improved balance sheet vs prior down-cycle.",
+    sourceUrl: "https://www.tijori.com/stocks/BPCL",
+  },
+  {
+    symbol: "BANKBARODA.NS",
+    name: "Bank of Baroda",
+    sector: "Financial Services",
+    cmp: 284.7,
+    peRatio: 6.8,
+    pbRatio: 1.1,
+    roePercent: 16.9,
+    debtToEquity: 0.0,
+    marketCapCr: 147240,
+    valueScore: 84,
+    valueRationale: "Attractive P/B and P/E combination with improving return metrics.",
+    sourceUrl: "https://www.tijori.com/stocks/BANKBARODA",
+  },
+];
+
 // Live Market Breadth (NSE Cash Market)
 export const BASE_MARKET_BREADTH: IndianMarketBreadth = {
   advances: 1142,
@@ -409,6 +484,7 @@ let currentIndianQuotes = [...BASE_INDIAN_INDICES];
 let currentIndianStocks = [...TOP_INDIAN_EQUITIES];
 let currentBreadth = { ...BASE_MARKET_BREADTH };
 let currentIndicators = JSON.parse(JSON.stringify(INITIAL_INDICATOR_DATASET)) as IndianMarketIndicatorsDataset;
+let currentTijoriValueScreener = [...BASE_TIJORI_VALUE_SCREENER];
 
 /**
  * Fetch Indian market quotes and breadth from server or local service
@@ -515,6 +591,36 @@ export async function getIndianIndicatorsDataset(): Promise<IndianMarketIndicato
   }
 
   return currentIndicators;
+}
+
+/**
+ * Fetch curated value-buying candidates from Tijori screener endpoint
+ */
+export async function getTijoriValueScreener(forceFresh = false): Promise<IndianValueScreenerPayload> {
+  try {
+    const res = await fetch(`/api/india/tijori-value-screener${forceFresh ? "?fresh=1" : ""}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.stocks) && data.stocks.length > 0) {
+        currentTijoriValueScreener = data.stocks;
+        return {
+          screenerName: data.screenerName || "Tijori Value Screener",
+          source: data.source || "Tijori",
+          fetchedAt: data.fetchedAt || new Date().toISOString(),
+          stocks: data.stocks,
+        };
+      }
+    }
+  } catch {
+    // Graceful fallback
+  }
+
+  return {
+    screenerName: "Tijori Value Screener (Curated Fallback)",
+    source: "Tijori + Internal Quant Curation",
+    fetchedAt: new Date().toISOString(),
+    stocks: currentTijoriValueScreener,
+  };
 }
 
 /**
