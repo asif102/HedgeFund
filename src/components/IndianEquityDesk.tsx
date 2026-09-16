@@ -5,14 +5,17 @@ import {
   IndianMarketBreadth,
   FiiDiiFlow,
   IndianMarketIndicatorsDataset,
+  IndianValueScreenerStock,
 } from "../types";
 import {
   BASE_INDIAN_INDICES,
   TOP_INDIAN_EQUITIES,
+  BASE_TIJORI_VALUE_SCREENER,
   BASE_MARKET_BREADTH,
   BASE_FII_DII_FLOWS,
   INITIAL_INDICATOR_DATASET,
   getIndianMarketOverview,
+  getTijoriValueScreener,
   generateLiveIndianTick,
   calculateAutomatedWeeklyTrend,
 } from "../data/indianMarketService";
@@ -53,6 +56,10 @@ export const IndianEquityDesk: React.FC<IndianEquityDeskProps> = ({
   const [indicators, setIndicators] = useState<IndianMarketIndicatorsDataset>(
     INITIAL_INDICATOR_DATASET
   );
+  const [tijoriValueStocks, setTijoriValueStocks] = useState<IndianValueScreenerStock[]>(
+    BASE_TIJORI_VALUE_SCREENER
+  );
+  const [tijoriSource, setTijoriSource] = useState("Tijori + Internal Value Curation");
 
   // Active Indicator sub-tab
   const [activeIndicator, setActiveIndicator] = useState<
@@ -132,6 +139,13 @@ export const IndianEquityDesk: React.FC<IndianEquityDeskProps> = ({
     fetchRealtimeMarketData(false).then(() => {
       if (!isMounted) return;
     });
+
+    getTijoriValueScreener(false).then((payload) => {
+      if (!isMounted) return;
+      if (payload?.stocks?.length) setTijoriValueStocks(payload.stocks);
+      if (payload?.source) setTijoriSource(payload.source);
+    });
+
     return () => {
       isMounted = false;
     };
@@ -173,6 +187,19 @@ export const IndianEquityDesk: React.FC<IndianEquityDeskProps> = ({
       vixQuote?.price || 13.85
     );
   }, [niftyQuote, breadth, indicators, vixQuote]);
+
+  const toSafeTijoriUrl = (url: string): string | null => {
+    try {
+      const parsed = new URL(url);
+      const isHttps = parsed.protocol === "https:";
+      const isTijoriDomain =
+        parsed.hostname === "tijori.com" || parsed.hostname === "www.tijori.com";
+      if (isHttps && isTijoriDomain) return parsed.toString();
+    } catch {
+      // noop
+    }
+    return null;
+  };
 
   return (
     <div className="space-y-6">
@@ -1270,7 +1297,84 @@ export const IndianEquityDesk: React.FC<IndianEquityDeskProps> = ({
         </div>
       </div>
 
-      {/* 4. Multi-Agent Hedge Fund Committee Briefing on Indian Equities */}
+      {/* 4. Indian Value Buying Screener (Tijori Curated) */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+          <div className="space-y-0.5">
+            <h3 className="text-base font-bold font-mono text-white flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-emerald-400" />
+              <span>Indian Stock Screener — Value Buying (Tijori)</span>
+            </h3>
+            <p className="text-xs font-mono text-slate-400">
+              Curated shortlist from Tijori metrics with valuation and quality filters (P/E, P/B, ROE, Debt/Equity)
+            </p>
+          </div>
+          <div className="text-[11px] font-mono text-slate-400">
+            Source: <span className="text-emerald-300 font-semibold">{tijoriSource}</span>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left font-mono text-xs">
+            <thead>
+              <tr className="border-b border-slate-800 text-slate-400 text-[11px] uppercase">
+                <th scope="col" className="py-2.5 px-3">Stock</th>
+                <th scope="col" className="py-2.5 px-3">Sector</th>
+                <th scope="col" className="py-2.5 px-3 text-right">CMP (₹)</th>
+                <th scope="col" className="py-2.5 px-3 text-right">P/E</th>
+                <th scope="col" className="py-2.5 px-3 text-right">P/B</th>
+                <th scope="col" className="py-2.5 px-3 text-right">ROE %</th>
+                <th scope="col" className="py-2.5 px-3 text-right">Debt/Equity</th>
+                <th scope="col" className="py-2.5 px-3 text-right">MCap (₹ Cr)</th>
+                <th scope="col" className="py-2.5 px-3 text-center">Value Score</th>
+                <th scope="col" className="py-2.5 px-3">Rationale</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60">
+              {tijoriValueStocks.map((stock) => {
+                const safeSourceUrl = toSafeTijoriUrl(stock.sourceUrl);
+                return (
+                <tr key={stock.symbol} className="hover:bg-slate-800/40 transition">
+                  <td className="py-3 px-3">
+                    {safeSourceUrl ? (
+                      <a
+                        href={safeSourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`${stock.symbol} source link (opens in a new tab)`}
+                        className="font-bold text-cyan-300 hover:text-cyan-200 inline-flex items-center gap-1"
+                      >
+                        <span>{stock.symbol}</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <span className="font-bold text-white">{stock.symbol}</span>
+                    )}
+                    <div className="text-[11px] text-slate-400 truncate max-w-[220px]">{stock.name}</div>
+                  </td>
+                  <td className="py-3 px-3 text-slate-300 text-[11px]">{stock.sector}</td>
+                  <td className="py-3 px-3 text-right text-white font-semibold">{stock.cmp.toFixed(2)}</td>
+                  <td className="py-3 px-3 text-right text-slate-200">{stock.peRatio.toFixed(1)}x</td>
+                  <td className="py-3 px-3 text-right text-slate-200">{stock.pbRatio.toFixed(1)}x</td>
+                  <td className="py-3 px-3 text-right text-emerald-400 font-semibold">{stock.roePercent.toFixed(1)}%</td>
+                  <td className="py-3 px-3 text-right text-slate-300">{stock.debtToEquity.toFixed(2)}</td>
+                  <td className="py-3 px-3 text-right text-amber-300 font-semibold">
+                    {stock.marketCapCr.toLocaleString("en-IN")}
+                  </td>
+                  <td className="py-3 px-3 text-center">
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold">
+                      {stock.valueScore}
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-slate-300 text-[11px] max-w-[280px]">{stock.valueRationale}</td>
+                </tr>
+              )})}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 5. Multi-Agent Hedge Fund Committee Briefing on Indian Equities */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
         <div className="border-b border-slate-800 pb-3">
           <h3 className="text-base font-bold font-mono text-white flex items-center gap-2">
@@ -1324,7 +1428,7 @@ export const IndianEquityDesk: React.FC<IndianEquityDeskProps> = ({
         </div>
       </div>
 
-      {/* 5. Finviz S&P 500 Sector & Industry Rotation Section */}
+      {/* 6. Finviz S&P 500 Sector & Industry Rotation Section */}
       <div id="sp500-sector-rotation" className="pt-2">
         <FinvizSectorRotation onSelectTicker={onNavigateToTicker} />
       </div>
