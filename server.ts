@@ -525,9 +525,28 @@ const TIJORI_VALUE_FALLBACK = [
 
 function parseNumericText(input: string | null | undefined): number | null {
   if (!input) return null;
-  const cleaned = input.replace(/,/g, "").replace(/₹/g, "").trim();
-  const num = Number(cleaned);
-  return Number.isFinite(num) ? num : null;
+  const cleaned = input
+    .replace(/,/g, "")
+    .replace(/₹/g, "")
+    .replace(/%/g, "")
+    .replace(/x$/i, "")
+    .trim();
+  const parsed = cleaned.match(/^(-?\d+(?:\.\d+)?)(?:\s*(k|m|b|l|lac|lakh|cr|crore))?$/i);
+  if (!parsed) return null;
+  const base = Number(parsed[1]);
+  if (!Number.isFinite(base)) return null;
+  const unit = (parsed[2] || "").toLowerCase();
+  const multipliers: Record<string, number> = {
+    k: 1_000,
+    m: 1_000_000,
+    b: 1_000_000_000,
+    l: 100_000,
+    lac: 100_000,
+    lakh: 100_000,
+    cr: 10_000_000,
+    crore: 10_000_000,
+  };
+  return base * (multipliers[unit] || 1);
 }
 
 function computeValueScore(peRatio: number, pbRatio: number, roePercent: number, debtToEquity: number): number {
@@ -571,14 +590,14 @@ function parseTijoriScreenerRows(html: string): Array<{
     if (textCells.length < 8) continue;
 
     const symbolRaw = textCells[0];
-    const pe = parseNumericText(textCells.find((c) => /\bP\/?E\b/i.test(c)) || textCells[3]);
-    const pb = parseNumericText(textCells.find((c) => /\bP\/?B\b/i.test(c)) || textCells[4]);
-    const roe = parseNumericText(textCells.find((c) => /\bROE\b/i.test(c)) || textCells[5]);
-    const debtEq = parseNumericText(textCells.find((c) => /debt/i.test(c)) || textCells[6]);
-    const mcap = parseNumericText(textCells.find((c) => /cr|crore|lakh/i.test(c)) || textCells[7]);
-    const cmp = parseNumericText(textCells[2]) || 0;
+    const cmp = parseNumericText(textCells[2]);
+    const pe = parseNumericText(textCells[3]);
+    const pb = parseNumericText(textCells[4]);
+    const roe = parseNumericText(textCells[5]);
+    const debtEq = parseNumericText(textCells[6]);
+    const mcap = parseNumericText(textCells[7]);
 
-    if (!symbolRaw || pe === null || pb === null || roe === null || debtEq === null || mcap === null) continue;
+    if (!symbolRaw || cmp === null || pe === null || pb === null || roe === null || debtEq === null || mcap === null) continue;
 
     rows.push({
       symbol: symbolRaw.toUpperCase().replace(/[^A-Z0-9]/g, ""),
@@ -1094,9 +1113,10 @@ app.get("/api/india/tijori-value-screener", async (req, res) => {
   }
 
   const fallbackPayload = {
-    ok: true,
+    ok: false,
     screenerName: "Tijori Value Screener (Curated Value Buying)",
     source: "Tijori + Internal Value Curation",
+    parseStatus: "fallback_unavailable",
     fetchedAt: new Date().toISOString(),
     stocks: TIJORI_VALUE_FALLBACK,
     usedFallback: true,
@@ -1105,15 +1125,19 @@ app.get("/api/india/tijori-value-screener", async (req, res) => {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4500);
-    const response = await fetch("https://www.tijori.com/screener", {
-      signal: controller.signal,
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-    });
-    clearTimeout(timeoutId);
+    let response: Response;
+    try {
+      response = await fetch("https://www.tijori.com/screener", {
+        signal: controller.signal,
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       indianTijoriScreenerCache = { payload: fallbackPayload, timestamp: Date.now() };
@@ -1121,10 +1145,27 @@ app.get("/api/india/tijori-value-screener", async (req, res) => {
       return;
     }
 
+    const contentType = response.headers.get("content-type") || "";
+    const contentLength = Number(response.headers.get("content-length") || "0");
+    if (!contentType.toLowerCase().includes("text/html") || (contentLength > 0 && contentLength > 1_000_000)) {
+      indianTijoriScreenerCache = { payload: fallbackPayload, timestamp: Date.now() };
+      res.json(fallbackPayload);
+      return;
+    }
+
     const html = await response.text();
+    if (html.length > 1_000_000) {
+      indianTijoriScreenerCache = { payload: fallbackPayload, timestamp: Date.now() };
+      res.json(fallbackPayload);
+      return;
+    }
+
     const parsedRows = parseTijoriScreenerRows(html)
       .filter((item) => item.peRatio > 0 && item.peRatio <= 20 && item.pbRatio > 0 && item.pbRatio <= 3.5)
-      .filter((item) => item.roePercent >= 12 && item.debtToEquity <= 1.5)
+      .filter((item) => {
+        const isFinancial = /bank|financial|nbfc|insurance/i.test(item.sector);
+        return item.roePercent >= 12 && (isFinancial || item.debtToEquity <= 1.5);
+      })
       .sort((a, b) => {
         const aScore = computeValueScore(a.peRatio, a.pbRatio, a.roePercent, a.debtToEquity);
         const bScore = computeValueScore(b.peRatio, b.pbRatio, b.roePercent, b.debtToEquity);
@@ -1143,9 +1184,10 @@ app.get("/api/india/tijori-value-screener", async (req, res) => {
       }));
 
     const payload = {
-      ok: true,
+      ok: parsedRows.length > 0,
       screenerName: "Tijori Value Screener (Curated Value Buying)",
-      source: "Tijori Screener",
+      source: parsedRows.length > 0 ? "Tijori Screener" : "Tijori + Internal Value Curation",
+      parseStatus: parsedRows.length > 0 ? "parsed" : "structure_mismatch_fallback",
       fetchedAt: new Date().toISOString(),
       stocks: parsedRows.length > 0 ? parsedRows : TIJORI_VALUE_FALLBACK,
       usedFallback: parsedRows.length === 0,

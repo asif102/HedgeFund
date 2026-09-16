@@ -188,6 +188,19 @@ export const IndianEquityDesk: React.FC<IndianEquityDeskProps> = ({
     );
   }, [niftyQuote, breadth, indicators, vixQuote]);
 
+  const toSafeTijoriUrl = (url: string): string | null => {
+    try {
+      const parsed = new URL(url);
+      const isHttps = parsed.protocol === "https:";
+      const isTijoriDomain =
+        parsed.hostname === "tijori.com" || parsed.hostname === "www.tijori.com";
+      if (isHttps && isTijoriDomain) return parsed.toString();
+    } catch {
+      // noop
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       {/* 1. Executive Indian Market Live Tape Bar */}
@@ -1305,23 +1318,38 @@ export const IndianEquityDesk: React.FC<IndianEquityDeskProps> = ({
           <table className="w-full text-left font-mono text-xs">
             <thead>
               <tr className="border-b border-slate-800 text-slate-400 text-[11px] uppercase">
-                <th className="py-2.5 px-3">Stock</th>
-                <th className="py-2.5 px-3">Sector</th>
-                <th className="py-2.5 px-3 text-right">CMP (₹)</th>
-                <th className="py-2.5 px-3 text-right">P/E</th>
-                <th className="py-2.5 px-3 text-right">P/B</th>
-                <th className="py-2.5 px-3 text-right">ROE %</th>
-                <th className="py-2.5 px-3 text-right">Debt/Equity</th>
-                <th className="py-2.5 px-3 text-right">MCap (₹ Cr)</th>
-                <th className="py-2.5 px-3 text-center">Value Score</th>
-                <th className="py-2.5 px-3">Rationale</th>
+                <th scope="col" className="py-2.5 px-3">Stock</th>
+                <th scope="col" className="py-2.5 px-3">Sector</th>
+                <th scope="col" className="py-2.5 px-3 text-right">CMP (₹)</th>
+                <th scope="col" className="py-2.5 px-3 text-right">P/E</th>
+                <th scope="col" className="py-2.5 px-3 text-right">P/B</th>
+                <th scope="col" className="py-2.5 px-3 text-right">ROE %</th>
+                <th scope="col" className="py-2.5 px-3 text-right">Debt/Equity</th>
+                <th scope="col" className="py-2.5 px-3 text-right">MCap (₹ Cr)</th>
+                <th scope="col" className="py-2.5 px-3 text-center">Value Score</th>
+                <th scope="col" className="py-2.5 px-3">Rationale</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {tijoriValueStocks.map((stock) => (
+              {tijoriValueStocks.map((stock) => {
+                const safeSourceUrl = toSafeTijoriUrl(stock.sourceUrl);
+                return (
                 <tr key={stock.symbol} className="hover:bg-slate-800/40 transition">
                   <td className="py-3 px-3">
-                    <div className="font-bold text-white">{stock.symbol}</div>
+                    {safeSourceUrl ? (
+                      <a
+                        href={safeSourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`${stock.symbol} source link (opens in a new tab)`}
+                        className="font-bold text-cyan-300 hover:text-cyan-200 inline-flex items-center gap-1"
+                      >
+                        <span>{stock.symbol}</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    ) : (
+                      <span className="font-bold text-white">{stock.symbol}</span>
+                    )}
                     <div className="text-[11px] text-slate-400 truncate max-w-[220px]">{stock.name}</div>
                   </td>
                   <td className="py-3 px-3 text-slate-300 text-[11px]">{stock.sector}</td>
@@ -1340,7 +1368,7 @@ export const IndianEquityDesk: React.FC<IndianEquityDeskProps> = ({
                   </td>
                   <td className="py-3 px-3 text-slate-300 text-[11px] max-w-[280px]">{stock.valueRationale}</td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
