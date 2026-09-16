@@ -446,7 +446,174 @@ interface IndianMarketCacheItem {
   timestamp: number;
 }
 let indianMarketCache: IndianMarketCacheItem | null = null;
+let indianTijoriScreenerCache: IndianMarketCacheItem | null = null;
 const INDIAN_CACHE_TTL_MS = 8000; // 8 seconds cache for fresh live exchange data
+const INDIAN_TIJORI_CACHE_TTL_MS = 5 * 60 * 1000;
+
+const TIJORI_VALUE_FALLBACK = [
+  {
+    symbol: "COALINDIA.NS",
+    name: "Coal India Ltd",
+    sector: "Energy",
+    cmp: 496.8,
+    peRatio: 6.9,
+    pbRatio: 2.1,
+    roePercent: 30.4,
+    debtToEquity: 0.05,
+    marketCapCr: 306050,
+    valueScore: 87,
+    valueRationale: "Single-digit P/E with high cash generation and strong ROE profile.",
+    sourceUrl: "https://www.tijori.com/stocks/COALINDIA",
+  },
+  {
+    symbol: "POWERGRID.NS",
+    name: "Power Grid Corporation of India Ltd",
+    sector: "Utilities",
+    cmp: 352.4,
+    peRatio: 15.1,
+    pbRatio: 2.4,
+    roePercent: 17.8,
+    debtToEquity: 1.15,
+    marketCapCr: 327860,
+    valueScore: 79,
+    valueRationale: "Defensive utility franchise with stable return ratios and predictable cash flows.",
+    sourceUrl: "https://www.tijori.com/stocks/POWERGRID",
+  },
+  {
+    symbol: "NTPC.NS",
+    name: "NTPC Ltd",
+    sector: "Utilities",
+    cmp: 422.6,
+    peRatio: 14.4,
+    pbRatio: 2.2,
+    roePercent: 15.6,
+    debtToEquity: 1.32,
+    marketCapCr: 409330,
+    valueScore: 76,
+    valueRationale: "Reasonable valuation with visible earnings and regulated growth capex.",
+    sourceUrl: "https://www.tijori.com/stocks/NTPC",
+  },
+  {
+    symbol: "BPCL.NS",
+    name: "Bharat Petroleum Corporation Ltd",
+    sector: "Oil & Gas",
+    cmp: 379.2,
+    peRatio: 8.4,
+    pbRatio: 1.5,
+    roePercent: 19.1,
+    debtToEquity: 0.83,
+    marketCapCr: 164430,
+    valueScore: 82,
+    valueRationale: "Low earnings multiple and improved balance sheet vs prior down-cycle.",
+    sourceUrl: "https://www.tijori.com/stocks/BPCL",
+  },
+  {
+    symbol: "BANKBARODA.NS",
+    name: "Bank of Baroda",
+    sector: "Financial Services",
+    cmp: 284.7,
+    peRatio: 6.8,
+    pbRatio: 1.1,
+    roePercent: 16.9,
+    debtToEquity: 0.0,
+    marketCapCr: 147240,
+    valueScore: 84,
+    valueRationale: "Attractive P/B and P/E combination with improving return metrics.",
+    sourceUrl: "https://www.tijori.com/stocks/BANKBARODA",
+  },
+];
+
+function parseNumericText(input: string | null | undefined): number | null {
+  if (!input) return null;
+  const cleaned = input
+    .replace(/,/g, "")
+    .replace(/₹/g, "")
+    .replace(/%/g, "")
+    .replace(/x$/i, "")
+    .trim();
+  const parsed = cleaned.match(/^(-?\d+(?:\.\d+)?)(?:\s*(k|m|b|l|lac|lakh|cr|crore))?$/i);
+  if (!parsed) return null;
+  const base = Number(parsed[1]);
+  if (!Number.isFinite(base)) return null;
+  const unit = (parsed[2] || "").toLowerCase();
+  const multipliers: Record<string, number> = {
+    k: 1_000,
+    m: 1_000_000,
+    b: 1_000_000_000,
+    l: 100_000,
+    lac: 100_000,
+    lakh: 100_000,
+    cr: 10_000_000,
+    crore: 10_000_000,
+  };
+  return base * (multipliers[unit] || 1);
+}
+
+function computeValueScore(peRatio: number, pbRatio: number, roePercent: number, debtToEquity: number): number {
+  const peScore = Math.max(0, Math.min(40, (25 - peRatio) * 2));
+  const pbScore = Math.max(0, Math.min(25, (3 - pbRatio) * 8));
+  const roeScore = Math.max(0, Math.min(25, roePercent));
+  const debtScore = Math.max(0, Math.min(10, (2 - debtToEquity) * 5));
+  return Math.round(peScore + pbScore + roeScore + debtScore);
+}
+
+function parseTijoriScreenerRows(html: string): Array<{
+  symbol: string;
+  name: string;
+  sector: string;
+  cmp: number;
+  peRatio: number;
+  pbRatio: number;
+  roePercent: number;
+  debtToEquity: number;
+  marketCapCr: number;
+}> {
+  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  const rows: Array<{
+    symbol: string;
+    name: string;
+    sector: string;
+    cmp: number;
+    peRatio: number;
+    pbRatio: number;
+    roePercent: number;
+    debtToEquity: number;
+    marketCapCr: number;
+  }> = [];
+
+  let rowMatch: RegExpExecArray | null;
+  while ((rowMatch = rowRegex.exec(html)) !== null) {
+    const row = rowMatch[1];
+    const textCells = Array.from(row.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi))
+      .map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+    if (textCells.length < 8) continue;
+
+    const symbolRaw = textCells[0];
+    const cmp = parseNumericText(textCells[2]);
+    const pe = parseNumericText(textCells[3]);
+    const pb = parseNumericText(textCells[4]);
+    const roe = parseNumericText(textCells[5]);
+    const debtEq = parseNumericText(textCells[6]);
+    const mcap = parseNumericText(textCells[7]);
+
+    if (!symbolRaw || cmp === null || pe === null || pb === null || roe === null || debtEq === null || mcap === null) continue;
+
+    rows.push({
+      symbol: symbolRaw.toUpperCase().replace(/[^A-Z0-9]/g, ""),
+      name: textCells[1] || symbolRaw,
+      sector: textCells[8] || "Diversified",
+      cmp,
+      peRatio: pe,
+      pbRatio: pb,
+      roePercent: roe,
+      debtToEquity: debtEq,
+      marketCapCr: mcap,
+    });
+  }
+
+  return rows;
+}
 
 // Fast helper to fetch real-time chart data from Yahoo Finance gateway
 async function fetchIndianExchangeQuote(symbol: string, timeoutMs = 3000): Promise<{
@@ -931,6 +1098,106 @@ app.get("/api/india/market", async (req, res) => {
         { date: "Current Session", fiiNetCr: -1842.5, diiNetCr: 2410.8, totalNetCr: 568.3 },
       ],
     });
+  }
+});
+
+app.get("/api/india/tijori-value-screener", async (req, res) => {
+  const forceFresh = req.query.fresh === "1";
+  if (
+    !forceFresh &&
+    indianTijoriScreenerCache &&
+    Date.now() - indianTijoriScreenerCache.timestamp < INDIAN_TIJORI_CACHE_TTL_MS
+  ) {
+    res.json(indianTijoriScreenerCache.payload);
+    return;
+  }
+
+  const fallbackPayload = {
+    ok: false,
+    screenerName: "Tijori Value Screener (Curated Value Buying)",
+    source: "Tijori + Internal Value Curation",
+    parseStatus: "fallback_unavailable",
+    fetchedAt: new Date().toISOString(),
+    stocks: TIJORI_VALUE_FALLBACK,
+    usedFallback: true,
+  };
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4500);
+    let response: Response;
+    try {
+      response = await fetch("https://www.tijori.com/screener", {
+        signal: controller.signal,
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!response.ok) {
+      indianTijoriScreenerCache = { payload: fallbackPayload, timestamp: Date.now() };
+      res.json(fallbackPayload);
+      return;
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    const contentLength = Number(response.headers.get("content-length") || "0");
+    if (!contentType.toLowerCase().includes("text/html") || (contentLength > 0 && contentLength > 1_000_000)) {
+      indianTijoriScreenerCache = { payload: fallbackPayload, timestamp: Date.now() };
+      res.json(fallbackPayload);
+      return;
+    }
+
+    const html = await response.text();
+    if (html.length > 1_000_000) {
+      indianTijoriScreenerCache = { payload: fallbackPayload, timestamp: Date.now() };
+      res.json(fallbackPayload);
+      return;
+    }
+
+    const parsedRows = parseTijoriScreenerRows(html)
+      .filter((item) => item.peRatio > 0 && item.peRatio <= 20 && item.pbRatio > 0 && item.pbRatio <= 3.5)
+      .filter((item) => {
+        const isFinancial = /bank|financial|nbfc|insurance/i.test(item.sector);
+        return item.roePercent >= 12 && (isFinancial || item.debtToEquity <= 1.5);
+      })
+      .sort((a, b) => {
+        const aScore = computeValueScore(a.peRatio, a.pbRatio, a.roePercent, a.debtToEquity);
+        const bScore = computeValueScore(b.peRatio, b.pbRatio, b.roePercent, b.debtToEquity);
+        return bScore - aScore;
+      })
+      .slice(0, 10)
+      .map((item) => ({
+        ...item,
+        symbol: item.symbol.endsWith(".NS") ? item.symbol : `${item.symbol}.NS`,
+        valueScore: computeValueScore(item.peRatio, item.pbRatio, item.roePercent, item.debtToEquity),
+        valueRationale:
+          item.peRatio <= 12 && item.pbRatio <= 2
+            ? "Deep-value profile with strong balance-sheet and profitability support."
+            : "Reasonable valuation and profitability profile suitable for value accumulation.",
+        sourceUrl: `https://www.tijori.com/stocks/${item.symbol.replace(".NS", "")}`,
+      }));
+
+    const payload = {
+      ok: parsedRows.length > 0,
+      screenerName: "Tijori Value Screener (Curated Value Buying)",
+      source: parsedRows.length > 0 ? "Tijori Screener" : "Tijori + Internal Value Curation",
+      parseStatus: parsedRows.length > 0 ? "parsed" : "structure_mismatch_fallback",
+      fetchedAt: new Date().toISOString(),
+      stocks: parsedRows.length > 0 ? parsedRows : TIJORI_VALUE_FALLBACK,
+      usedFallback: parsedRows.length === 0,
+    };
+
+    indianTijoriScreenerCache = { payload, timestamp: Date.now() };
+    res.json(payload);
+  } catch {
+    indianTijoriScreenerCache = { payload: fallbackPayload, timestamp: Date.now() };
+    res.json(fallbackPayload);
   }
 });
 
