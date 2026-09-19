@@ -37,10 +37,47 @@ import {
   Activity,
   BarChart2,
   CheckCircle2,
+  Search,
+  X,
+  Lightbulb,
 } from "lucide-react";
 
 interface IndianEquityDeskProps {
   onNavigateToTicker?: (ticker: string) => void;
+}
+
+interface TijoriSearchResult {
+  name: string;
+  slug: string;
+  source: string;
+}
+
+interface TijoriCompanyProfile {
+  name: string;
+  slug: string;
+  source: string;
+  sourceUrl: string;
+  summary: string;
+  marketCap: string;
+  currentPrice: string;
+  peRatio: string;
+  revenue: string;
+  ebitda: string;
+  netProfit: string;
+  operatingCashFlow: string;
+  freeCashFlow: string;
+  eps: string;
+  reportedRevenue: string;
+  reportedEbitda: string;
+  reportedNetProfit: string;
+  reportedCashFlow: string;
+  netProfitMargin: string;
+  roce: string;
+  debtToEquity: string;
+  cashFlowQuality: string;
+  bullCase: string;
+  bearCase: string;
+  fetchedAt: string;
 }
 
 export const IndianEquityDesk: React.FC<IndianEquityDeskProps> = ({
@@ -73,6 +110,53 @@ export const IndianEquityDesk: React.FC<IndianEquityDeskProps> = ({
   // Stock search and filter
   const [stockSearch, setStockSearch] = useState("");
   const [selectedSector, setSelectedSector] = useState<string>("ALL");
+  const [tijoriQuery, setTijoriQuery] = useState("");
+  const [tijoriResults, setTijoriResults] = useState<TijoriSearchResult[]>([]);
+  const [isTijoriSearching, setIsTijoriSearching] = useState(false);
+  const [selectedTijoriCompany, setSelectedTijoriCompany] = useState<TijoriCompanyProfile | null>(null);
+  const [isTijoriOverviewOpen, setIsTijoriOverviewOpen] = useState(false);
+  const [isTijoriLoading, setIsTijoriLoading] = useState(false);
+  const [tijoriError, setTijoriError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const query = tijoriQuery.trim();
+    if (query.length < 2) {
+      setTijoriResults([]);
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      setIsTijoriSearching(true);
+      try {
+        const response = await fetch(`/api/india/tijori/search?q=${encodeURIComponent(query)}`);
+        const payload = await response.json();
+        setTijoriResults(payload.ok ? payload.results : []);
+      } catch {
+        setTijoriResults([]);
+      } finally {
+        setIsTijoriSearching(false);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [tijoriQuery]);
+
+  const openTijoriCompany = async (result: TijoriSearchResult) => {
+    setTijoriQuery(result.name);
+    setTijoriResults([]);
+    setIsTijoriLoading(true);
+    setTijoriError(null);
+    try {
+      const response = await fetch(`/api/india/tijori/company?slug=${encodeURIComponent(result.slug)}`);
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "Tijori profile unavailable");
+      setSelectedTijoriCompany(payload);
+    } catch (error: any) {
+      setTijoriError(error?.message || "Unable to load the Tijori profile");
+    } finally {
+      setIsTijoriLoading(false);
+    }
+  };
 
   // Core live real-time fetch function connecting to server-side NSE/BSE Gateway
   const fetchRealtimeMarketData = async (forceFresh = false) => {
@@ -230,6 +314,173 @@ export const IndianEquityDesk: React.FC<IndianEquityDeskProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Tijori-listed equity search and thesis view */}
+        <div className="rounded-lg border border-cyan-500/25 bg-slate-950/60 p-3 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider">
+                <Search className="w-3.5 h-3.5" />
+                Tijori Equity Intelligence
+              </div>
+              <p className="text-[11px] text-slate-500 font-mono mt-1">
+                Search listed Indian companies and open a bird&apos;s-eye investment thesis.
+              </p>
+            </div>
+            <span className="text-[10px] font-mono text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 rounded px-2 py-1">
+              Source: Tijori Finance
+            </span>
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input
+              value={tijoriQuery}
+              onChange={(event) => setTijoriQuery(event.target.value)}
+              placeholder="Search any listed Indian equity, e.g. Reliance, HDFC Bank, Infosys..."
+              className="w-full rounded-lg border border-slate-700 bg-slate-900 py-2.5 pl-9 pr-9 text-sm font-mono text-white placeholder-slate-500 outline-none focus:border-cyan-400"
+              aria-label="Search listed Indian equities on Tijori Finance"
+            />
+            {tijoriQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTijoriQuery("");
+                  setTijoriResults([]);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                aria-label="Clear Tijori equity search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+
+            {(isTijoriSearching || tijoriResults.length > 0) && (
+              <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-2xl">
+                {isTijoriSearching && <div className="px-3 py-2 text-xs font-mono text-cyan-300">Searching Tijori...</div>}
+                {tijoriResults.map((result) => (
+                  <button
+                    type="button"
+                    key={`${result.slug}-${result.name}`}
+                    onClick={() => void openTijoriCompany(result)}
+                    className="flex w-full items-center justify-between gap-3 border-b border-slate-800 px-3 py-2 text-left hover:bg-cyan-500/10"
+                  >
+                    <span className="truncate text-xs font-mono text-slate-200">{result.name}</span>
+                    <span className="shrink-0 text-[10px] font-mono text-cyan-400">Tijori ↗</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {isTijoriLoading && <div className="text-xs font-mono text-cyan-300">Loading Tijori investment profile...</div>}
+          {tijoriError && <div className="text-xs font-mono text-rose-300">{tijoriError}</div>}
+
+          {selectedTijoriCompany && (
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_1fr_1fr]">
+              <button
+                type="button"
+                onClick={() => setIsTijoriOverviewOpen(true)}
+                className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-3 text-left transition hover:border-cyan-300/70 hover:bg-cyan-500/10 cursor-pointer"
+                aria-label={`Open bird's-eye investment overview for ${selectedTijoriCompany.name}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-white">{selectedTijoriCompany.name}</h3>
+                    <p className="mt-1 text-[10px] font-mono uppercase tracking-wider text-cyan-300">Bird&apos;s-eye thesis</p>
+                  </div>
+                  <Lightbulb className="w-5 h-5 shrink-0 text-amber-400" />
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-slate-300">{selectedTijoriCompany.summary}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-[10px] font-mono text-slate-400">
+                  <span>Price: <strong className="text-white">{selectedTijoriCompany.currentPrice}</strong></span>
+                  <span>Market Cap: <strong className="text-white">{selectedTijoriCompany.marketCap}</strong></span>
+                  <span className="text-cyan-300">Click for full overview ↗</span>
+                </div>
+              </button>
+              <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-300">Bull case</h4>
+                <p className="mt-2 text-xs leading-relaxed text-slate-300">{selectedTijoriCompany.bullCase}</p>
+              </div>
+              <div className="rounded-lg border border-rose-500/25 bg-rose-500/5 p-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-rose-300">Bear case</h4>
+                <p className="mt-2 text-xs leading-relaxed text-slate-300">{selectedTijoriCompany.bearCase}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {selectedTijoriCompany && isTijoriOverviewOpen && (
+          <div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            onClick={(event) => {
+              if (event.target === event.currentTarget) setIsTijoriOverviewOpen(false);
+            }}
+          >
+            <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-cyan-500/40 bg-slate-950 shadow-2xl">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-800 p-5">
+                <div>
+                  <p className="text-[10px] font-mono uppercase tracking-wider text-cyan-300">Tijori Finance | Bird&apos;s-eye investment view</p>
+                  <h3 className="mt-1 text-xl font-bold text-white">{selectedTijoriCompany.name}</h3>
+                  <p className="mt-1 text-xs font-mono text-slate-400">Fetched {new Date(selectedTijoriCompany.fetchedAt).toLocaleString()}</p>
+                </div>
+                <button type="button" onClick={() => setIsTijoriOverviewOpen(false)} className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-slate-300 hover:text-white" aria-label="Close investment overview">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto p-5 space-y-5">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  {[
+                    ["Current price", selectedTijoriCompany.currentPrice],
+                    ["Market cap", selectedTijoriCompany.marketCap],
+                    ["P/E ratio", selectedTijoriCompany.peRatio],
+                    ["EPS", selectedTijoriCompany.eps],
+                    ["Revenue", selectedTijoriCompany.reportedRevenue !== "Not reported" ? selectedTijoriCompany.reportedRevenue : selectedTijoriCompany.revenue],
+                    ["EBITDA", selectedTijoriCompany.reportedEbitda !== "Not reported" ? selectedTijoriCompany.reportedEbitda : selectedTijoriCompany.ebitda],
+                    ["Net profit", selectedTijoriCompany.reportedNetProfit !== "Not reported" ? selectedTijoriCompany.reportedNetProfit : selectedTijoriCompany.netProfit],
+                    ["Operating cash flow", selectedTijoriCompany.operatingCashFlow],
+                    ["Free cash flow", selectedTijoriCompany.freeCashFlow],
+                    ["Cash-flow series", selectedTijoriCompany.reportedCashFlow],
+                    ["Net profit margin", selectedTijoriCompany.netProfitMargin],
+                    ["ROCE", selectedTijoriCompany.roce],
+                    ["Debt / equity", selectedTijoriCompany.debtToEquity],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-lg border border-slate-800 bg-slate-900 p-3">
+                      <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">{label}</div>
+                      <div className="mt-1 text-sm font-bold text-white">{value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-300">Business overview</h4>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-300">{selectedTijoriCompany.summary}</p>
+                </div>
+
+                <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-300">Cash-flow quality</h4>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-300">{selectedTijoriCompany.cashFlowQuality}</p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-300">Bull case</h4>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-300">{selectedTijoriCompany.bullCase}</p>
+                  </div>
+                  <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-rose-300">Bear case</h4>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-300">{selectedTijoriCompany.bearCase}</p>
+                  </div>
+                </div>
+
+                <a href={selectedTijoriCompany.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex text-xs font-mono text-cyan-300 hover:text-cyan-200">
+                  Open full Tijori profile ↗
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Index Cards Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">

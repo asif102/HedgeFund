@@ -1,1 +1,155 @@
 @import "tailwindcss";
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+@layer components {
+  .panel-shell {
+    @apply border border-slate-800/90 rounded-[0.75rem] shadow-lg;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(20, 28, 48, 0.6) 100%);
+  }
+
+  .input-range {
+    @apply w-full h-2 rounded-full appearance-none cursor-pointer transition-all hover:scale-105;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3));
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fade-in 0.6s ease-out forwards;
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  .animate-slide-in-up {
+    animation: slide-in-up 0.5s ease-out forwards;
+  }
+
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  /* Webkit Scrollbar Styling */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.6);
+    border-radius: 2px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 1);
+  }
+
+  /* Input Range Styling */
+  input[type="range"] {
+    @apply scrollbar-thin;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    @apply w-3 h-3 bg-amber-400 rounded-full cursor-pointer border border-amber-500 hover:scale-125 transition-transform;
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.3);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    @apply w-3 h-3 bg-amber-400 rounded-full cursor-pointer border border-amber-500 hover:scale-125 transition-transform;
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.3);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(251, 191, 36, 0.5);
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes swarm-agent-float {
+  0%, 100% {
+    transform: translate(-50%, -50%) translateY(0);
+  }
+  50% {
+    transform: translate(-50%, -50%) translateY(-5px);
+  }
+}
+
+.animate-swarm-agent {
+  animation: swarm-agent-float 4.5s ease-in-out infinite;
+}
+
+/* Global scrollbar styling for the entire app */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(2, 6, 23, 0.4);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.5);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.8);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: rgba(100, 116, 139, 1);
+}
+

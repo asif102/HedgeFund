@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { AGENT_ROSTER } from "../data/benchmarkCases";
 import { AgentProfile, AgentId, StrategyType } from "../types";
 import {
@@ -91,6 +92,7 @@ export const AgentRosterHeader: React.FC<AgentRosterHeaderProps> = ({
   onNavigateTab,
 }) => {
   const [inspectAgent, setInspectAgent] = useState<AgentProfile | null>(null);
+  const [showAgentsModal, setShowAgentsModal] = useState<boolean>(false);
 
   // Close modal on Escape key press
   useEffect(() => {
@@ -132,7 +134,7 @@ export const AgentRosterHeader: React.FC<AgentRosterHeaderProps> = ({
   };
 
   return (
-    <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
+    <header className="relative z-[100] shrink-0 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6">
         {/* Top Header Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-slate-800/80">
@@ -156,94 +158,182 @@ export const AgentRosterHeader: React.FC<AgentRosterHeaderProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800 text-xs text-slate-300 font-mono">
+            <button
+              onClick={() => setShowAgentsModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-xs text-slate-300 hover:text-white font-mono transition cursor-pointer active:scale-95"
+              title="View all agents in popup"
+            >
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>5 Agents Clickable & Interactive</span>
-            </div>
+              <span>5 Agents</span>
+              <span className="text-[9px] text-slate-400">↗</span>
+            </button>
             <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900/60 border border-slate-800 text-xs text-slate-400 font-mono">
               <span>Backtest Engine: <strong className="text-amber-400">Agent Strategies Ready</strong></span>
             </div>
           </div>
         </div>
 
-        {/* 5 Clickable Agent Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-2.5">
+        {/* Visible interactive agent roster */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 pt-3">
           {AGENT_ROSTER.map((agent) => {
             const isSelected = activeAgent === agent.id;
-            const strat = AGENT_STRATEGY_MAP[agent.id];
+            const strategy = AGENT_STRATEGY_MAP[agent.id];
 
             return (
-              <div
+              <button
                 key={agent.id}
-                id={`agent-card-${agent.id}`}
+                type="button"
                 onClick={() => handleOpenDossier(agent)}
-                role="button"
-                tabIndex={0}
-                title={`Click to view ${agent.name}'s thesis and backtest their ${strat.strategyName} strategy`}
-                className={`relative group cursor-pointer p-2.5 rounded-lg border transition-all text-left select-none ${
+                className={`group rounded-lg border p-3 text-left transition-all cursor-pointer ${
                   isSelected
-                    ? "bg-slate-800/90 border-amber-500/60 ring-1 ring-amber-500/30 shadow-lg shadow-amber-500/5"
-                    : "bg-slate-900/60 hover:bg-slate-850 hover:border-amber-500/40 border-slate-800/80 hover:shadow-md"
+                    ? "bg-slate-800/90 border-amber-500/60 ring-1 ring-amber-500/30"
+                    : "bg-slate-900/70 border-slate-800 hover:border-amber-500/50 hover:bg-slate-800/80"
                 }`}
+                aria-label={`Open ${agent.name} agent dossier`}
               >
-                <div className="flex items-start justify-between gap-1.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div
-                      className={`p-1.5 rounded-md border transition-transform group-hover:scale-105 ${
-                        agent.id === "cio"
-                          ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
-                          : agent.id === "equityAnalyst"
-                          ? "bg-blue-500/15 border-blue-500/30 text-blue-400"
-                          : agent.id === "cto"
-                          ? "bg-cyan-500/15 border-cyan-500/30 text-cyan-400"
-                          : agent.id === "macroStrategist"
-                          ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
-                          : "bg-rose-500/15 border-rose-500/30 text-rose-400"
-                      }`}
-                    >
-                      {getAgentIcon(agent.id)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider truncate">
-                        {agent.id === "cio"
-                          ? "CIO"
-                          : agent.id === "equityAnalyst"
-                          ? "Equity Lead"
-                          : agent.id === "cto"
-                          ? "CTO"
-                          : agent.id === "macroStrategist"
-                          ? "Global Macro"
-                          : "CRO (Bear)"}
-                      </div>
-                      <div className="text-xs font-semibold text-slate-100 truncate group-hover:text-amber-300 transition-colors">
-                        {agent.name.split(",")[0]}
-                      </div>
-                    </div>
-                  </div>
-
-                  <span className="p-1 text-slate-500 group-hover:text-amber-400 rounded transition">
-                    <Sliders className="w-3 h-3" />
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="p-1.5 rounded-md border border-slate-700 bg-slate-950 text-amber-400 shrink-0">
+                    {getAgentIcon(agent.id)}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[10px] uppercase tracking-wider text-slate-500 font-mono">
+                      {agent.title}
+                    </span>
+                    <span className="block truncate text-xs font-semibold text-slate-100 group-hover:text-amber-300">
+                      {agent.name.split(",")[0]}
+                    </span>
                   </span>
                 </div>
-
-                {/* Strategy Micro-Badge */}
-                <div className="mt-2 pt-1.5 border-t border-slate-800/70 flex items-center justify-between text-[10px] font-mono">
-                  <span className="text-slate-400 truncate max-w-[95px] flex items-center gap-1">
-                    <Play className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
-                    <span className="truncate">{strat.strategyName.split("&")[0]}</span>
-                  </span>
-                  <span className="text-amber-400/90 text-[9px] font-bold group-hover:underline">
-                    Backtest ↗
-                  </span>
-                </div>
-              </div>
+                <span className="mt-2 block truncate border-t border-slate-800 pt-2 text-[10px] text-slate-400 font-mono">
+                  {strategy.strategyName}
+                </span>
+              </button>
             );
           })}
         </div>
+
       </div>
 
+      {/* Agents Grid Modal Popup */}
+      {showAgentsModal && createPortal(
+        (
+        <div
+          id="agents-modal-backdrop"
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowAgentsModal(false);
+          }}
+        >
+          <div
+            id="agents-grid-modal"
+            className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-4xl w-full shadow-2xl relative flex flex-col max-h-[90vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between gap-4 px-5 py-4 sm:px-6 border-b border-slate-800 bg-slate-900 flex-shrink-0">
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-white font-mono">Agent Roster</h3>
+                <p className="text-xs text-slate-400 mt-0.5">5 Quantitative Investment Specialists</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAgentsModal(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 transition cursor-pointer flex-shrink-0"
+                aria-label="Close agents modal"
+              >
+                <X className="w-4 h-4" />
+                <span>Close</span>
+              </button>
+            </div>
+
+            {/* Modal Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {AGENT_ROSTER.map((agent) => {
+                  const isSelected = activeAgent === agent.id;
+                  const strat = AGENT_STRATEGY_MAP[agent.id];
+
+                  return (
+                    <div
+                      key={agent.id}
+                      id={`agent-card-${agent.id}`}
+                      onClick={() => {
+                        handleOpenDossier(agent);
+                        setShowAgentsModal(false);
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      title={`Click to view ${agent.name}'s thesis and backtest their ${strat.strategyName} strategy`}
+                      className={`relative group cursor-pointer p-3 rounded-lg border transition-all text-left select-none ${
+                        isSelected
+                          ? "bg-slate-800/90 border-amber-500/60 ring-1 ring-amber-500/30 shadow-lg shadow-amber-500/5"
+                          : "bg-slate-900/60 hover:bg-slate-850 hover:border-amber-500/40 border-slate-800/80 hover:shadow-md"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div
+                            className={`p-1.5 rounded-md border transition-transform group-hover:scale-105 ${
+                              agent.id === "cio"
+                                ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
+                                : agent.id === "equityAnalyst"
+                                ? "bg-blue-500/15 border-blue-500/30 text-blue-400"
+                                : agent.id === "cto"
+                                ? "bg-cyan-500/15 border-cyan-500/30 text-cyan-400"
+                                : agent.id === "macroStrategist"
+                                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+                                : "bg-rose-500/15 border-rose-500/30 text-rose-400"
+                            }`}
+                          >
+                            {getAgentIcon(agent.id)}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider truncate">
+                              {agent.id === "cio"
+                                ? "CIO"
+                                : agent.id === "equityAnalyst"
+                                ? "Equity Lead"
+                                : agent.id === "cto"
+                                ? "CTO"
+                                : agent.id === "macroStrategist"
+                                ? "Global Macro"
+                                : "CRO (Bear)"}
+                            </div>
+                            <div className="text-xs font-semibold text-slate-100 truncate group-hover:text-amber-300 transition-colors">
+                              {agent.name.split(",")[0]}
+                            </div>
+                          </div>
+                        </div>
+
+                        <span className="p-1 text-slate-500 group-hover:text-amber-400 rounded transition flex-shrink-0">
+                          <Sliders className="w-3 h-3" />
+                        </span>
+                      </div>
+
+                      {/* Strategy Micro-Badge */}
+                      <div className="mt-2 pt-1.5 border-t border-slate-800/70 flex items-center justify-between text-[10px] font-mono">
+                        <span className="text-slate-400 truncate flex items-center gap-1">
+                          <Play className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
+                          <span className="truncate">{strat.strategyName.split("&")[0]}</span>
+                        </span>
+                        <span className="text-amber-400/90 text-[9px] font-bold group-hover:underline">
+                          View ↗
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+        ),
+        document.body,
+      )}
+
       {/* Agent Dossier & Strategy Command Modal */}
-      {inspectAgent && (
+      {inspectAgent && createPortal(
+        (
         <div
           id="agent-popup-backdrop"
           className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md overflow-y-auto animate-fade-in"
@@ -424,6 +514,8 @@ export const AgentRosterHeader: React.FC<AgentRosterHeaderProps> = ({
             </div>
           </div>
         </div>
+        ),
+        document.body,
       )}
     </header>
   );

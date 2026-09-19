@@ -22,7 +22,7 @@ import {
   Terminal,
   BarChart2,
 } from "lucide-react";
-import { MarketQuote } from "../types";
+import { MarketQuote, SwarmCommitteeResult } from "../types";
 
 interface AgentNode {
   id: string;
@@ -78,6 +78,7 @@ interface SwarmActivityLog {
 
 interface SwarmLensAnimationProps {
   quote?: MarketQuote;
+  committee?: SwarmCommitteeResult | null;
   currentTarget?: string;
   onNavigateToAgent?: (agentId: string) => void;
   onNavigateToTab?: (tab: "memorandum" | "phase1" | "phase2" | "backtester" | "scenarios" | "news") => void;
@@ -85,6 +86,7 @@ interface SwarmLensAnimationProps {
 
 export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
   quote,
+  committee,
   currentTarget = "NVDA (NVIDIA Corporation)",
   onNavigateToAgent,
   onNavigateToTab,
@@ -120,7 +122,16 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
 
   // Agent Node Definitions arranged radially around the central "THE LENS"
   const agents: AgentNode[] = useMemo(
-    () => [
+    () => {
+      const insightIds: Record<string, string> = {
+        macro_analyst: "macroStrategist",
+        equity_analyst: "equityAnalyst",
+        silicon_specialist: "cto",
+        risk_officer: "cro",
+        strategist: "cio",
+      };
+
+      return [
       {
         id: "macro_analyst",
         name: "Henrik Lindqvist",
@@ -217,8 +228,19 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
         metricValue: "+1.78¢ Edge",
         currentThought: "Crossing spread on passive block at VWAP -0.14%; book fill clean.",
       },
-    ],
-    [quote]
+      ].map((agent) => {
+        const insight = committee?.agents.find((item) => item.agentId === insightIds[agent.id]);
+        if (!insight) return agent;
+        return {
+          ...agent,
+          status: insight.stance === "BULLISH" ? "ACTIVE" : insight.stance === "BEARISH" ? "DEBATING" : "PROCESSING",
+          metricLabel: insight.metricLabel,
+          metricValue: insight.metricValue,
+          currentThought: `${insight.stance}: ${insight.evidence.join(" • ")}`,
+        };
+      });
+    },
+    [quote, committee]
   );
 
   // Streaming real-time activity log
@@ -372,7 +394,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
       const dpr = window.devicePixelRatio || 1;
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
-      ctx.scale(dpr, dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
     handleResize();
@@ -641,12 +663,13 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
   // Current ticker symbol
   const activeSymbol = quote?.symbol || "NVDA";
   const activePrice = quote?.price || 218.29;
+  const displayedPosterior = committee?.consensusScore ?? posteriorProbability;
 
   return (
     <div
       ref={containerRef}
       className={`relative w-full bg-[#050811] text-slate-100 rounded-xl border border-slate-800/80 shadow-2xl overflow-hidden font-mono select-none flex flex-col ${
-        isFullscreen ? "fixed inset-0 z-50 rounded-none border-none" : "min-h-[860px]"
+        isFullscreen ? "fixed inset-0 z-50 rounded-none border-none" : "min-h-[920px]"
       }`}
     >
       {/* ========================================================================= */}
@@ -763,7 +786,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
       {/* ========================================================================= */}
       {/* 3. MAIN INTERACTIVE CENTRAL STAGE ("THE LENS" VISUALIZATION CANVAS)      */}
       {/* ========================================================================= */}
-      <div className="relative flex-1 min-h-[460px] lg:min-h-[520px] w-full flex items-center justify-center overflow-hidden">
+      <div className="relative flex-1 min-h-[540px] lg:min-h-[600px] w-full flex items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_center,rgba(14,165,233,0.08),transparent_38%),linear-gradient(180deg,#050811,#02040a)]">
         {/* Background HTML5 Canvas (Splines, Particles, Shockwaves, Core) */}
         <canvas
           ref={canvasRef}
@@ -773,7 +796,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
         />
 
         {/* LEFT OVERLAY: Order Book Depth Ladder (Matching Vertical Green/Red Bars in Image) */}
-        <div className="absolute left-3 top-4 bottom-4 w-44 pointer-events-none hidden md:flex flex-col justify-between py-2 text-[10px] font-mono z-10">
+        <div className="absolute left-3 top-4 bottom-4 w-44 pointer-events-none hidden md:flex flex-col justify-between rounded-lg border border-slate-800/70 bg-[#050811]/90 px-2 py-2 text-[10px] font-mono backdrop-blur-sm z-10">
           <div className="space-y-1">
             <div className="flex items-center justify-between text-slate-400 border-b border-slate-800/80 pb-1">
               <span className="flex items-center gap-1 text-slate-300 font-bold">
@@ -842,7 +865,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
         </div>
 
         {/* RIGHT OVERLAY: Strike Pricing / Odds Spectrum (Matching Right Side in Image) */}
-        <div className="absolute right-3 top-4 bottom-4 w-44 pointer-events-none hidden md:flex flex-col justify-between py-2 text-[10px] font-mono z-10 text-right">
+        <div className="absolute right-3 top-4 bottom-4 w-44 pointer-events-none hidden md:flex flex-col justify-between rounded-lg border border-slate-800/70 bg-[#050811]/90 px-2 py-2 text-[10px] font-mono backdrop-blur-sm z-10 text-right">
           <div className="space-y-1">
             <div className="flex items-center justify-between text-slate-400 border-b border-slate-800/80 pb-1">
               <span className="text-[9px] text-purple-400">FAIR ODDS</span>
@@ -894,7 +917,8 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
           const isSelected = selectedAgentId === agent.id;
           // Calculate relative percent positions
           // angle: 0 rad is at (x: 1, y: 0) relative to center
-          const dist = 0.38; // relative to canvas box (0 to 0.5)
+          // Keep the agent orbit inside the side-panel gutters.
+          const dist = 0.22;
           const leftPct = 50 + Math.cos(agent.angle) * (dist * 100);
           const topPct = 50 + Math.sin(agent.angle) * (dist * 100);
 
@@ -911,7 +935,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
                 if (onNavigateToAgent) onNavigateToAgent(agent.id);
               }}
               className={`absolute cursor-pointer transition-all duration-300 z-20 group ${
-                isSelected ? "scale-110 z-30" : "hover:scale-105"
+                isSelected ? "scale-110 z-30" : "hover:scale-105 animate-swarm-agent"
               }`}
             >
               {/* Agent Node Badge Card */}
@@ -1091,7 +1115,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
 
           <div className="flex items-center justify-between text-[9px] text-slate-400 border-t border-slate-800/80 pt-1">
             <span>PRIOR: 50.0%</span>
-            <span className="text-emerald-400 font-bold">POSTERIOR: {posteriorProbability}%</span>
+            <span className="text-emerald-400 font-bold">CONSENSUS: {displayedPosterior}%</span>
           </div>
         </div>
 

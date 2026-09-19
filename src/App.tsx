@@ -6,6 +6,7 @@ import {
   MarketQuote,
   FinancialNewsItem,
   StrategyType,
+  SwarmCommitteeResult,
 } from "./types";
 import { AgentRosterHeader } from "./components/AgentRosterHeader";
 import { TargetSearchBar } from "./components/TargetSearchBar";
@@ -93,6 +94,7 @@ export default function App() {
   const [refreshInterval, setRefreshInterval] = useState<number>(10);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(10);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [swarmCommittee, setSwarmCommittee] = useState<SwarmCommitteeResult | null>(null);
 
   // Helper to fetch live quote directly from Finviz backend proxy
   const fetchFinvizLive = async (sym: string) => {
@@ -114,6 +116,23 @@ export default function App() {
     // Asynchronously update with live finviz.com data
     fetchFinvizLive(activeTicker);
   }, [activeTicker, refreshInterval]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/swarm/committee", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({ quote: marketQuote }),
+    })
+      .then((response) => response.json())
+      .then((payload) => {
+        if (payload.ok && payload.result) setSwarmCommittee(payload.result);
+      })
+      .catch(() => undefined);
+
+    return () => controller.abort();
+  }, [marketQuote]);
 
   // Interval timer for real-time automatic refreshes
   useEffect(() => {
@@ -321,7 +340,7 @@ export default function App() {
       />
 
       {/* 5. Main Navigation Tabs */}
-      <div className="border-b border-slate-800 bg-slate-900/50 sticky top-[138px] z-30 backdrop-blur-md">
+      <div className="border-b border-slate-800 bg-slate-900/50 relative z-30 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between overflow-x-auto scrollbar-none py-1">
           <nav className="flex space-x-1 sm:space-x-2">
             {/* Tab: Swarm Terminal ("The Lens") */}
@@ -479,8 +498,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* 6. Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 sm:px-6">
+      {/* 6. Main Content Area - Scrollable */}
+      <main className="max-w-7xl w-full mx-auto px-4 py-6 sm:px-6">
         {isAnalyzing ? (
           <div className="space-y-6">
             <div className="py-6 flex flex-col items-center justify-center text-center space-y-4 bg-slate-900/60 rounded-xl border border-slate-800 p-4">
@@ -549,6 +568,7 @@ export default function App() {
               </div>
               <SwarmLensAnimation
                 quote={marketQuote}
+                committee={swarmCommittee}
                 currentTarget={currentAnalysis.target}
                 onNavigateToAgent={(agentId) => {
                   setActiveAgentFilter(agentId as any);
@@ -563,6 +583,7 @@ export default function App() {
             {activeTab === "swarm" && (
               <SwarmLensAnimation
                 quote={marketQuote}
+                committee={swarmCommittee}
                 currentTarget={currentAnalysis.target}
                 onNavigateToAgent={(agentId) => {
                   setActiveAgentFilter(agentId as any);

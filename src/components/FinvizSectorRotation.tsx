@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   FinvizStockItem,
   FinvizIndustryGroup,
@@ -7,6 +7,7 @@ import {
   RotationQuadrant,
 } from "../types";
 import { buildFinvizSectorRotationPayload } from "../data/finvizSectorData";
+import { fetchLiveFinvizQuote } from "../data/marketDataService";
 import {
   Layers,
   Grid,
@@ -33,12 +34,21 @@ interface FinvizSectorRotationProps {
 type GroupingMode = "sector-industry" | "industry" | "stocks" | "rrg-quadrants";
 type TimeframeMode = "1D" | "1W" | "1M" | "3M" | "YTD";
 
+type LivePrice = {
+  price: number;
+  changePercent: number;
+  fetchedAt: string;
+};
+
 export const FinvizSectorRotation: React.FC<FinvizSectorRotationProps> = ({
   onSelectTicker,
 }) => {
   const [data, setData] = useState<FinvizSectorRotationPayload>(() =>
     buildFinvizSectorRotationPayload()
   );
+  const [livePrices, setLivePrices] = useState<Record<string, LivePrice>>({});
+  const [isLivePricing, setIsLivePricing] = useState(false);
+  const [livePricesFetchedAt, setLivePricesFetchedAt] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [groupingMode, setGroupingMode] = useState<GroupingMode>("sector-industry");
   const [timeframe, setTimeframe] = useState<TimeframeMode>("1W");
@@ -63,6 +73,49 @@ export const FinvizSectorRotation: React.FC<FinvizSectorRotationProps> = ({
     "Banks - Diversified": true,
   });
 
+  const syncLivePrices = async (payload: FinvizSectorRotationPayload) => {
+    const tickers = Array.from(
+      new Set([
+        ...payload.allStocks.map((stock) => stock.ticker),
+        ...payload.sectors.map((sector) => sector.etfTicker),
+      ])
+    );
+
+    setIsLivePricing(true);
+    try {
+      const quotes: Array<readonly [string, LivePrice] | null> = [];
+      for (let index = 0; index < tickers.length; index += 6) {
+        const batch = tickers.slice(index, index + 6);
+        const batchQuotes = await Promise.all(
+          batch.map(async (ticker) => {
+            const quote = await fetchLiveFinvizQuote(ticker);
+            const finvizData = quote?.finvizData as { isSynthesized?: boolean } | undefined;
+            if (!quote || finvizData?.isSynthesized) return null;
+            return [ticker, {
+              price: quote.price,
+              changePercent: quote.changePercent,
+              fetchedAt: new Date().toISOString(),
+            }] as const;
+          })
+        );
+        quotes.push(...batchQuotes);
+      }
+
+      const nextLivePrices: Record<string, LivePrice> = {};
+      quotes.forEach((entry) => {
+        if (entry) nextLivePrices[entry[0]] = entry[1];
+      });
+      setLivePrices(nextLivePrices);
+      setLivePricesFetchedAt(new Date().toISOString());
+    } finally {
+      setIsLivePricing(false);
+    }
+  };
+
+  useEffect(() => {
+    void syncLivePrices(data);
+  }, []);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -71,13 +124,27 @@ export const FinvizSectorRotation: React.FC<FinvizSectorRotationProps> = ({
         const json = await res.json();
         if (json.ok) {
           setData(json);
+          await syncLivePrices(json);
         }
       }
     } catch {
-      setData(buildFinvizSectorRotationPayload());
+      const fallback = buildFinvizSectorRotationPayload();
+      setData(fallback);
+      await syncLivePrices(fallback);
     } finally {
       setTimeout(() => setIsRefreshing(false), 400);
     }
+  };
+
+  const getLivePrice = (ticker: string, fallback: number) =>
+    livePrices[ticker]?.price ?? null;
+
+  const getLiveChangePercent = (ticker: string, fallback: number) =>
+    livePrices[ticker]?.changePercent ?? fallback;
+
+  const renderLivePrice = (ticker: string, fallback: number) => {
+    const price = getLivePrice(ticker, fallback);
+    return price === null ? "Loading..." : `$${price.toFixed(2)}`;
   };
 
   const toggleSector = (sectorName: string) => {
@@ -116,7 +183,7 @@ export const FinvizSectorRotation: React.FC<FinvizSectorRotationProps> = ({
   const getStockReturnByTimeframe = (stock: FinvizStockItem) => {
     switch (timeframe) {
       case "1D":
-        return stock.change;
+        return getLiveChangePercent(stock.ticker, stock.change);
       case "1W":
         return stock.perf1W;
       case "1M":
@@ -321,6 +388,13 @@ export const FinvizSectorRotation: React.FC<FinvizSectorRotationProps> = ({
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-orange-400" : ""}`} />
             <span>{isRefreshing ? "Syncing..." : "Sync Finviz"}</span>
           </button>
+            <span
+              className="flex items-center gap-1 text-[10px] font-mono text-emerald-400"
+              title={livePricesFetchedAt ? `Finviz fetched ${new Date(livePricesFetchedAt).toLocaleTimeString()}` : "Waiting for Finviz prices"}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${isLivePricing ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
+              {isLivePricing ? "Fetching live prices" : `${Object.keys(livePrices).length} live prices`}
+            </span>
         </div>
       </div>
 
@@ -482,6 +556,11 @@ export const FinvizSectorRotation: React.FC<FinvizSectorRotationProps> = ({
                         <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-slate-700 text-slate-300">
                           {sector.etfTicker}
                         </span>
+                        {livePrices[sector.etfTicker] && (
+                          <span className="text-xs font-mono font-bold text-emerald-400">
+                            {renderLivePrice(sector.etfTicker, 0)}
+                          </span>
+                        )}
                         <span className="text-xs font-mono text-slate-400">
                           ({sector.weightInSP500}% S&amp;P 500 Weight)
                         </span>
@@ -600,7 +679,7 @@ export const FinvizSectorRotation: React.FC<FinvizSectorRotationProps> = ({
                                       {stock.name}
                                     </div>
                                     <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 pt-1 border-t border-slate-800/50">
-                                      <span>${stock.price.toFixed(2)}</span>
+                                      <span>{renderLivePrice(stock.ticker, stock.price)}</span>
                                       <span>MCap {stock.marketCap}</span>
                                     </div>
                                     <div className="flex items-center justify-between pt-0.5">
@@ -776,7 +855,7 @@ export const FinvizSectorRotation: React.FC<FinvizSectorRotationProps> = ({
                         {stock.industry}
                       </td>
                       <td className="py-3 px-3 text-right font-bold text-slate-200">
-                        ${stock.price.toFixed(2)}
+                        {renderLivePrice(stock.ticker, stock.price)}
                       </td>
                       <td
                         className={`py-3 px-3 text-right font-bold ${

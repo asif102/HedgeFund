@@ -42,6 +42,111 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
+// Independent, auditable swarm calculations. Each agent uses a separate lens
+// over the same verified quote; no random values or shared score are used.
+app.post("/api/swarm/committee", (req, res) => {
+  const quote = req.body?.quote;
+  if (!quote || typeof quote.price !== "number") {
+    res.status(400).json({ ok: false, error: "A verified market quote is required." });
+    return;
+  }
+
+  const price = quote.price as number;
+  const changePercent = Number(quote.changePercent || 0);
+  const peRatio = Number(quote.peRatio || 0);
+  const week52High = Number(quote.week52High || price);
+  const week52Low = Number(quote.week52Low || price);
+  const rangePosition = week52High > week52Low
+    ? ((price - week52Low) / (week52High - week52Low)) * 100
+    : 50;
+  const leverageScore = Number(quote.marketCap) > 0 ? 70 : 50;
+  const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
+  const stance = (score: number): "BULLISH" | "NEUTRAL" | "BEARISH" =>
+    score >= 65 ? "BULLISH" : score <= 40 ? "BEARISH" : "NEUTRAL";
+  const symbol = String(quote.symbol || "UNKNOWN");
+
+  const agents = [
+    {
+      agentId: "equityAnalyst",
+      agentName: "Elena Rostova",
+      mandate: "Price, valuation, and trend evidence",
+      score: clamp(50 + changePercent * 5 + (rangePosition - 50) * 0.35 - (peRatio > 60 ? 15 : peRatio > 35 ? 7 : 0)),
+      metricLabel: "Valuation / trend",
+      metricValue: `${peRatio ? `${peRatio.toFixed(1)}x P/E` : "P/E n/a"}`,
+      evidence: [
+        `${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}% latest move`,
+        `${rangePosition.toFixed(0)}% of the 52-week range`,
+        peRatio ? `P/E of ${peRatio.toFixed(1)}x used in valuation penalty` : "P/E unavailable; valuation confidence reduced",
+      ],
+    },
+    {
+      agentId: "cto",
+      agentName: "Dr. Aris Thorne",
+      mandate: "Momentum persistence and execution signal",
+      score: clamp(50 + changePercent * 8 + (rangePosition > 70 ? 12 : rangePosition < 30 ? -12 : 0)),
+      metricLabel: "Momentum signal",
+      metricValue: `${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}%`,
+      evidence: [
+        `Momentum contribution: ${changePercent >= 0 ? "positive" : "negative"}`,
+        `Price location: ${rangePosition.toFixed(0)}% of annual range`,
+        "No technology-specific claim made without company data",
+      ],
+    },
+    {
+      agentId: "macroStrategist",
+      agentName: "Henrik Lindqvist",
+      mandate: "Market regime and downside context",
+      score: clamp(55 + (changePercent >= 0 ? 5 : -8) + (rangePosition > 80 ? 5 : rangePosition < 20 ? -10 : 0)),
+      metricLabel: "Regime score",
+      metricValue: `${rangePosition.toFixed(0)}/100`,
+      evidence: [
+        `52-week positioning: ${rangePosition.toFixed(0)}/100`,
+        `Tape direction: ${changePercent >= 0 ? "risk-on" : "risk-off"}`,
+        "Macro score is price-derived, not a fabricated macro forecast",
+      ],
+    },
+    {
+      agentId: "cro",
+      agentName: "Rachel Stern",
+      mandate: "Capital preservation and risk controls",
+      score: clamp(58 - Math.abs(changePercent) * 6 - (rangePosition > 90 ? 12 : 0) + (leverageScore > 60 ? 5 : -5)),
+      metricLabel: "Risk-adjusted score",
+      metricValue: `${clamp(100 - Math.abs(changePercent) * 10)}/100`,
+      evidence: [
+        `Absolute move risk: ${Math.abs(changePercent).toFixed(2)}%`,
+        rangePosition > 90 ? "Near 52-week high; re-rating risk elevated" : "Not at an extreme 52-week high",
+        "Position sizing should be reduced when quote confidence is incomplete",
+      ],
+    },
+    {
+      agentId: "cio",
+      agentName: "Dr. Marcus Vance",
+      mandate: "Independent allocation synthesis",
+      score: clamp(50 + changePercent * 4 + (rangePosition - 50) * 0.2),
+      metricLabel: "Allocation score",
+      metricValue: "Awaiting committee",
+      evidence: [
+        "CIO score is calculated independently before consensus aggregation",
+        "Requires corroboration from valuation, momentum, macro, and risk lenses",
+      ],
+    },
+  ].map((agent) => ({ ...agent, stance: stance(agent.score) }));
+
+  const consensusScore = clamp(agents.reduce((sum, agent) => sum + agent.score, 0) / agents.length);
+  res.json({
+    ok: true,
+    result: {
+      symbol,
+      price,
+      consensusScore,
+      consensusStance: stance(consensusScore),
+      agents,
+      calculatedAt: new Date().toISOString(),
+      methodology: "Five independent deterministic lenses over the same live quote; scores are auditable and non-random.",
+    },
+  });
+});
+
 // Live Market Data Feed Endpoint
 app.get("/api/market-data", (req, res) => {
   const symbol = ((req.query.symbol as string) || "NVDA").toUpperCase();
@@ -388,6 +493,254 @@ async function fetchIndianExchangeQuote(symbol: string, timeoutMs = 3000): Promi
     return null;
   }
 }
+
+const TIJORI_BASE_URL = "https://www.tijorifinance.com";
+
+function decodeTijoriHtml(value: string): string {
+  return value
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&mdash;/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractTijoriMeta(html: string, name: string): string {
+  const match = html.match(
+    new RegExp(`<meta[^>]+name=["']${name}["'][^>]+content=["']([^"']*)`, "i")
+  );
+  return match ? decodeTijoriHtml(match[1]) : "";
+}
+
+function extractTijoriThesis(html: string, label: "Bull case" | "Bear case"): string {
+  const escapedLabel = label.replace(" ", "\\s+");
+  const match = html.match(
+    new RegExp(`<p[^>]*class=["'][^"']*peg-popover__desc_text[^"']*["'][^>]*>[\\s\\S]*?<span[^>]*>${escapedLabel}<\\/span>([\\s\\S]*?)<\\/p>`, "i")
+  );
+  return match ? decodeTijoriHtml(match[1]) : "Not available in Tijori's public profile.";
+}
+
+function extractTijoriDetail(html: string, label: string): string {
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = html.match(
+    new RegExp(`${escapedLabel}[\\s\\S]{0,500}?company_details_value[^>]*>([\\s\\S]*?)<\\/div>`, "i")
+  );
+  return match ? decodeTijoriHtml(match[1]) : "Not available";
+}
+
+function extractTijoriEmbeddedMetric(html: string, metricNames: string[]): string {
+  const scriptMatch = html.match(/<script[^>]+id=["']company_details_data["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (!scriptMatch) return "Not available";
+  try {
+    const details = JSON.parse(scriptMatch[1]);
+    const entries = details.quick_look?.table_data || [];
+    const entry = entries.find((item: any) =>
+      metricNames.some((name) => String(item.name || "").trim().toLowerCase() === name.toLowerCase())
+    );
+    const latest = entry?.data?.find((row: any[]) => String(row[0]).trim().toLowerCase() === "latest");
+    return latest?.[1] ? String(latest[1]) : "Not available";
+  } catch {
+    return "Not available";
+  }
+}
+
+function extractTijoriCashFlowQuality(html: string): string {
+  const scriptMatch = html.match(/<script[^>]+id=["']company_details_data["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (!scriptMatch) return "Not available";
+  try {
+    const details = JSON.parse(scriptMatch[1]);
+    const groups = details.quick_look?.data || [];
+    const group = groups.flatMap((item: any) => item.factories || []).find((item: any) =>
+      String(item.name || "").toLowerCase().includes("revenue recognition")
+    );
+    return group?.sentence || "Not available";
+  } catch {
+    return "Not available";
+  }
+}
+
+function extractTijoriStructuredMetric(html: string, aliases: string[]): string {
+  const scriptMatch = html.match(/<script[^>]+id=["']company_details_data["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (!scriptMatch) return "Not reported";
+
+  try {
+    const details = JSON.parse(scriptMatch[1]);
+    const normalizedAliases = aliases.map((alias) => alias.toLowerCase().replace(/[^a-z0-9]/g, ""));
+
+    const findValue = (value: any): string | null => {
+      if (!value || typeof value !== "object") return null;
+      for (const [key, nested] of Object.entries(value)) {
+        const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (normalizedAliases.some((alias) => normalizedKey === alias || normalizedKey.includes(alias))) {
+          if (typeof nested === "string" || typeof nested === "number") return String(nested);
+          if (Array.isArray(nested)) {
+            const values = nested.filter((item) => typeof item === "string" || typeof item === "number");
+            if (values.length > 0) return String(values[values.length - 1]);
+          }
+          if (nested && typeof nested === "object") {
+            const candidate = findValue(nested);
+            if (candidate) return candidate;
+            const data = (nested as any).data;
+            if (Array.isArray(data) && data.length > 0) {
+              const latest = data[data.length - 1];
+              if (Array.isArray(latest)) return String(latest[latest.length - 1]);
+              if (typeof latest === "string" || typeof latest === "number") return String(latest);
+            }
+          }
+        }
+        const child = findValue(nested);
+        if (child) return child;
+      }
+      return null;
+    };
+
+    return findValue(details) || "Not reported";
+  } catch {
+    return "Not reported";
+  }
+}
+
+async function fetchTijoriFinancialRows(companyId: number) {
+  const fetchRows = async (section: string) => {
+    const response = await fetch(`${TIJORI_BASE_URL}/api/v1/ind/financial_statement_compare/${companyId}/${section}`, {
+      headers: { Accept: "application/json", "User-Agent": "Quantum-Alpha-Capital/1.0" },
+    });
+    if (!response.ok) return [];
+    const payload = await response.json();
+    const encoded = payload?.data?.[0]?.[section];
+    if (!encoded) return [];
+    return JSON.parse(encoded)?.data || [];
+  };
+
+  const [profitLoss, cashFlow, ratios] = await Promise.all([
+    fetchRows("pl_c_s"),
+    fetchRows("cf_c"),
+    fetchRows("fr_c"),
+  ]);
+  const flattenRows = (rows: any[]): any[] => rows.flatMap((row) => [row, ...flattenRows(Array.isArray(row.sub_section) ? row.sub_section : [])]);
+  const findRow = (rows: any[], names: string[]) => flattenRows(rows).find((row) => names.includes(String(row.name).trim().toLowerCase()));
+  const latest = (row: any) => {
+    const values = row?.value;
+    return Array.isArray(values) && values.length ? values[values.length - 1] : null;
+  };
+  const sales = findRow(profitLoss, ["sales"]);
+  const operatingProfit = findRow(profitLoss, ["operating profit"]);
+  const netProfit = findRow(profitLoss, ["net profit"]);
+  const shares = findRow(profitLoss, ["number of shares(crs)"]);
+  const operatingCash = findRow(cashFlow, ["cash from operating activity"]);
+  const netCash = findRow(cashFlow, ["net cash flow"]);
+  const freeCash = findRow(cashFlow, ["free cash flow (est)"]);
+  const adjustedEps = findRow(ratios, ["adjusted eps"]);
+  const formatCr = (value: any) => value === null || value === undefined ? "Not reported" : `${Number(value).toLocaleString("en-IN")} Cr`;
+  const netProfitValue = latest(netProfit);
+  const sharesValue = latest(shares);
+
+  return {
+    revenue: formatCr(latest(sales)),
+    ebitda: formatCr(latest(operatingProfit)),
+    netProfit: formatCr(netProfitValue),
+    operatingCashFlow: formatCr(latest(operatingCash)),
+    freeCashFlow: formatCr(latest(freeCash)),
+    netCashFlow: formatCr(latest(netCash)),
+    eps: latest(adjustedEps) !== null
+      ? `₹${Number(latest(adjustedEps)).toFixed(2)}`
+      : netProfitValue !== null && sharesValue
+      ? `₹${(Number(netProfitValue) / Number(sharesValue)).toFixed(2)}`
+      : "Not reported",
+  };
+}
+
+app.get("/api/india/tijori/search", async (req, res) => {
+  const query = String(req.query.q || "").trim();
+  if (query.length < 2) {
+    res.json({ ok: true, results: [] });
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${TIJORI_BASE_URL}/api/v1/ind/company_search/?q=${encodeURIComponent(query)}`,
+      { headers: { Accept: "application/json", "User-Agent": "Quantum-Alpha-Capital/1.0" } }
+    );
+    const raw = await response.text();
+    const parsed = JSON.parse(raw);
+    const results = (typeof parsed === "string" ? JSON.parse(parsed) : parsed)
+      .filter((item: any) => item.type === "companies")
+      .slice(0, 20)
+      .map((item: any) => ({ name: item.name, slug: item.slug, source: "Tijori Finance" }));
+    res.json({ ok: true, results });
+  } catch (error: any) {
+    res.status(502).json({ ok: false, error: error?.message || "Tijori search unavailable" });
+  }
+});
+
+app.get("/api/india/tijori/company", async (req, res) => {
+  const slug = String(req.query.slug || "").trim().replace(/[^a-z0-9-]/gi, "");
+  if (!slug) {
+    res.status(400).json({ ok: false, error: "A Tijori company slug is required" });
+    return;
+  }
+
+  try {
+    const sourceUrl = `${TIJORI_BASE_URL}/company/${slug}/`;
+    const response = await fetch(sourceUrl, {
+      headers: { Accept: "text/html", "User-Agent": "Quantum-Alpha-Capital/1.0" },
+    });
+    if (!response.ok) {
+      res.status(response.status).json({ ok: false, error: "Tijori company profile unavailable" });
+      return;
+    }
+
+    const html = await response.text();
+    const detailsScript = html.match(/<script[^>]+id=["']company_details_data["'][^>]*>([\s\S]*?)<\/script>/i);
+    const companyDetails = detailsScript ? JSON.parse(detailsScript[1]) : {};
+    const financialRows = companyDetails.company_id ? await fetchTijoriFinancialRows(companyDetails.company_id) : null;
+    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+    const title = titleMatch
+      ? decodeTijoriHtml(titleMatch[1])
+          .replace(/\s*\|\s*Tijori Finance/i, "")
+          .replace(/\s+Stock price:\s+Live updates/i, "")
+      : slug;
+    const priceMatch = html.match(/<div class=["']price["'][^>]*>[\s\S]*?<\/small>\s*([\d,]+(?:\.\d+)?)/i);
+    const marketCapMatch = html.match(/company_details_title[^>]*>\s*Market Cap[\s\S]{0,500}?<[^>]*class=["'][^"']*company_details_value[^"']*["'][^>]*>([\s\S]*?)<\//i);
+    const profileText = decodeTijoriHtml(html);
+    const summary = extractTijoriMeta(html, "description") || profileText.slice(0, 420);
+
+    res.json({
+      ok: true,
+      source: "Tijori Finance",
+      sourceUrl,
+      slug,
+      name: title,
+      summary,
+      marketCap: marketCapMatch ? decodeTijoriHtml(marketCapMatch[1]) : "See Tijori profile",
+      currentPrice: priceMatch ? `₹${priceMatch[1]}` : "Not reported",
+      peRatio: extractTijoriDetail(html, "P/E"),
+      revenue: financialRows?.revenue || "Not reported",
+      ebitda: financialRows?.ebitda || "Not reported",
+      netProfit: financialRows?.netProfit || "Not reported",
+      operatingCashFlow: financialRows?.operatingCashFlow || "Not reported",
+      freeCashFlow: financialRows?.freeCashFlow || "Not reported",
+      eps: financialRows?.eps || "Not reported",
+      reportedRevenue: financialRows?.revenue || "Not reported",
+      reportedEbitda: financialRows?.ebitda || "Not reported",
+      reportedNetProfit: financialRows?.netProfit || "Not reported",
+      reportedCashFlow: financialRows?.netCashFlow || "Not reported",
+      netProfitMargin: extractTijoriEmbeddedMetric(html, ["Net Profit Margin"]),
+      roce: extractTijoriEmbeddedMetric(html, ["ROCE"]),
+      debtToEquity: extractTijoriEmbeddedMetric(html, ["Debt to Equity"]),
+      cashFlowQuality: extractTijoriCashFlowQuality(html),
+      bullCase: extractTijoriThesis(html, "Bull case"),
+      bearCase: extractTijoriThesis(html, "Bear case"),
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(502).json({ ok: false, error: error?.message || "Tijori profile unavailable" });
+  }
+});
 
 // Real-time Indian Equity Market Overview (Indices, Breadth, Stocks, FII/DII)
 app.get("/api/india/market", async (req, res) => {
