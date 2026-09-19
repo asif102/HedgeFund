@@ -108,6 +108,27 @@ export interface SummarySnapshot {
   volatilityBeta?: string;
 }
 
+export interface SwarmAgentInsight {
+  agentId: AgentId;
+  agentName: string;
+  mandate: string;
+  score: number;
+  stance: "BULLISH" | "NEUTRAL" | "BEARISH";
+  evidence: string[];
+  metricLabel: string;
+  metricValue: string;
+}
+
+export interface SwarmCommitteeResult {
+  symbol: string;
+  price: number;
+  consensusScore: number;
+  consensusStance: "BULLISH" | "NEUTRAL" | "BEARISH";
+  agents: SwarmAgentInsight[];
+  calculatedAt: string;
+  methodology: string;
+}
+
 export interface HedgeFundAnalysisResult {
   target: string;
   category: string;
