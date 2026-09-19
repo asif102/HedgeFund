@@ -322,30 +322,28 @@ function getFallbackInstitutionalTickerData(ticker: string): any {
 }
 
 // Live Scraped Data from finviz.com for ticker search with caching and resilient fallback
-app.get("/api/finviz", async (req, res) => {
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  const ticker = ((req.query.ticker as string) || (req.query.symbol as string) || "").trim().toUpperCase();
+// Fetches and parses the live Finviz quote for a ticker (with cache + resilient fallback).
+// Shared by the /api/finviz route and the analysis dossier generator so the displayed
+// live price and the computed target/valuation always derive from the same source.
+async function resolveFinvizQuote(ticker: string): Promise<any> {
   if (!ticker) {
-    res.status(400).json({ ok: false, error: "Ticker symbol parameter is required" });
-    return;
+    return { ok: false, error: "Ticker symbol parameter is required" };
   }
 
   // If ticker has spaces or is a macro theme (e.g. "Quantum Computing Hardware"), it's not a single equity
   if (ticker.includes(" ") || ticker.length > 8) {
-    res.json({
+    return {
       ok: false,
       isMacroTheme: true,
       error: `"${ticker}" is a macroeconomic concept rather than an individual equity ticker.`,
       symbol: ticker,
-    });
-    return;
+    };
   }
 
   // Check in-memory cache first
   const cached = finvizCache.get(ticker);
   if (cached && Date.now() - cached.timestamp < FINVIZ_CACHE_TTL_MS) {
-    res.json(cached.payload);
-    return;
+    return cached.payload;
   }
 
   try {
@@ -368,15 +366,13 @@ app.get("/api/finviz", async (req, res) => {
       // Return synthesized quote rather than hard 404
       const fallback = getFallbackInstitutionalTickerData(ticker);
       finvizCache.set(ticker, { payload: fallback, timestamp: Date.now() });
-      res.json(fallback);
-      return;
+      return fallback;
     }
 
     if (!response.ok) {
       const fallback = getFallbackInstitutionalTickerData(ticker);
       finvizCache.set(ticker, { payload: fallback, timestamp: Date.now() });
-      res.json(fallback);
-      return;
+      return fallback;
     }
 
     const html = await response.text();
@@ -459,13 +455,25 @@ app.get("/api/finviz", async (req, res) => {
     };
 
     finvizCache.set(ticker, { payload, timestamp: Date.now() });
-    res.json(payload);
+    return payload;
   } catch (error: any) {
     // Return high-fidelity fallback on any network drop or scraping timeout
     const fallback = getFallbackInstitutionalTickerData(ticker);
     finvizCache.set(ticker, { payload: fallback, timestamp: Date.now() });
-    res.json(fallback);
+    return fallback;
   }
+}
+
+app.get("/api/finviz", async (req, res) => {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  const ticker = ((req.query.ticker as string) || (req.query.symbol as string) || "").trim().toUpperCase();
+  if (!ticker) {
+    res.status(400).json({ ok: false, error: "Ticker symbol parameter is required" });
+    return;
+  }
+
+  const payload = await resolveFinvizQuote(ticker);
+  res.json(payload);
 });
 
 // Finviz S&P 500 Sector & Industry Rotation Endpoint
@@ -1607,8 +1615,22 @@ app.get("/api/india/indicators", (_req, res) => {
   });
 });
 
+// Deterministic per-ticker pseudo-random generator so synthesized metrics vary by company
+// (instead of a single fixed value) while staying stable across repeated requests for the same ticker.
+function tickerSeed(ticker: string): number {
+  let hash = 0;
+  for (let i = 0; i < ticker.length; i++) {
+    hash = (hash * 31 + ticker.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+function seededFraction(seed: number, salt: number): number {
+  const x = Math.sin(seed + salt * 9973) * 10000;
+  return x - Math.floor(x);
+}
+
 // Helper to supply institutional committee dossiers when Gemini models encounter high demand
-function getInstitutionalAnalysis(target: string): any {
+async function getInstitutionalAnalysis(target: string): Promise<any> {
   const upper = target.toUpperCase().trim();
   if (BENCHMARK_CASES[upper]) {
     return BENCHMARK_CASES[upper];
@@ -1620,19 +1642,39 @@ function getInstitutionalAnalysis(target: string): any {
   }
 
   const ticker = (target.match(/\b([A-Z]{1,5})\b/)?.[1] || target).toUpperCase();
-  const rec = "Buy";
-  const fairValue = "$285.00 (+22% Upside)";
+
+  // Derive company-specific metrics from a stable ticker seed rather than fixed placeholder numbers.
+  const seed = tickerSeed(ticker);
+  // Use the same live/cached quote the "Live Tape" banner displays so Target/Valuation
+  // upside is always computed against the actual current price, never a disconnected baseline.
+  const liveQuote = await resolveFinvizQuote(ticker);
+  const referencePrice =
+    typeof liveQuote?.price === "number" && liveQuote.price > 0
+      ? liveQuote.price
+      : getFallbackInstitutionalTickerData(ticker).price;
+  const beta = Number((0.75 + seededFraction(seed, 1) * 1.55).toFixed(2)); // ~0.75x - 2.30x
+  const upsidePct = Math.round(8 + seededFraction(seed, 2) * 28); // ~8% - 36%
+  const convictionScore = Math.max(
+    35,
+    Math.min(92, Math.round(58 + seededFraction(seed, 3) * 30 - (beta > 1.8 ? 8 : 0)))
+  );
+  const riskRating =
+    beta >= 2.1 ? "Extreme" : beta >= 1.7 ? "High" : beta >= 1.3 ? "Elevated" : beta >= 0.9 ? "Moderate" : "Low";
+  const targetHorizon = beta >= 1.7 ? "6-12 Months" : beta >= 1.2 ? "9-15 Months" : "12-18 Months";
+  const targetPrice = referencePrice * (1 + upsidePct / 100);
+  const rec = convictionScore >= 70 ? "Buy" : convictionScore >= 45 ? "Hold" : "Avoid";
+  const fairValue = `$${targetPrice.toFixed(2)} (+${upsidePct}% Upside)`;
 
   return {
     target: `${ticker} (${target})`,
     category: "Secular Growth & Enterprise Technology",
     summarySnapshot: {
       recommendation: rec,
-      targetHorizon: "12-18 Months",
-      convictionScore: 82,
+      targetHorizon,
+      convictionScore,
       targetPriceOrFairValue: fairValue,
-      riskRating: "Moderate",
-      volatilityBeta: "1.24",
+      riskRating,
+      volatilityBeta: beta.toFixed(2),
     },
     phase1SegregatedResearch: {
       equityAnalyst: {
@@ -1793,7 +1835,7 @@ app.post("/api/analyze", async (req, res) => {
     // If no API key configured, seamlessly serve institutional committee analysis
     res.json({
       success: true,
-      data: getInstitutionalAnalysis(target),
+      data: await getInstitutionalAnalysis(target),
       fallbackLoaded: true,
       notice: "Institutional committee analysis loaded (Gemini API key not set).",
     });
@@ -2035,7 +2077,7 @@ Output strictly valid JSON matching the specified schema.`;
 
     if (!succeeded || !responseText) {
       console.log("[Quantum Alpha] Live AI models queued/busy; activating institutional committee synthesis.");
-      const fallbackData = getInstitutionalAnalysis(target);
+      const fallbackData = await getInstitutionalAnalysis(target);
       res.json({
         success: true,
         data: fallbackData,
@@ -2056,7 +2098,7 @@ Output strictly valid JSON matching the specified schema.`;
       res.json({ success: true, data: parsed });
     } catch (parseError) {
       console.log("[Quantum Alpha] JSON formatting variance, utilizing institutional committee synthesis.");
-      const fallbackData = getInstitutionalAnalysis(target);
+      const fallbackData = await getInstitutionalAnalysis(target);
       res.json({
         success: true,
         data: fallbackData,
@@ -2066,7 +2108,7 @@ Output strictly valid JSON matching the specified schema.`;
     }
   } catch (error: any) {
     console.log("[Quantum Alpha] Analysis pipeline fallback activated.");
-    const fallbackData = getInstitutionalAnalysis(target);
+    const fallbackData = await getInstitutionalAnalysis(target);
     res.json({
       success: true,
       data: fallbackData,
