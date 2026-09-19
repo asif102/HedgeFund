@@ -16,6 +16,8 @@ import {
   ChevronRight,
   Sliders,
   X,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 interface AgentRosterHeaderProps {
@@ -26,6 +28,8 @@ interface AgentRosterHeaderProps {
   currentSymbol?: string;
   onRunAgentStrategy?: (strategyId: StrategyType) => void;
   onNavigateTab?: (tab: "memorandum" | "phase1" | "phase2" | "backtester") => void;
+  theme?: "dark" | "light";
+  onToggleTheme?: () => void;
 }
 
 const AGENT_STRATEGY_MAP: Record<
@@ -89,6 +93,8 @@ export const AgentRosterHeader: React.FC<AgentRosterHeaderProps> = ({
   currentSymbol = "NVDA",
   onRunAgentStrategy,
   onNavigateTab,
+  theme = "dark",
+  onToggleTheme,
 }) => {
   const [inspectAgent, setInspectAgent] = useState<AgentProfile | null>(null);
 
@@ -163,6 +169,18 @@ export const AgentRosterHeader: React.FC<AgentRosterHeaderProps> = ({
             <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900/60 border border-slate-800 text-xs text-slate-400 font-mono">
               <span>Backtest Engine: <strong className="text-amber-400">Agent Strategies Ready</strong></span>
             </div>
+            {onToggleTheme && (
+              <button
+                type="button"
+                onClick={onToggleTheme}
+                className="flex shrink-0 items-center gap-1.5 rounded-md border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs font-mono font-bold text-slate-200 transition hover:border-amber-400 hover:text-white"
+                aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+                title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              >
+                {theme === "dark" ? <Sun className="h-3.5 w-3.5 text-amber-300" /> : <Moon className="h-3.5 w-3.5 text-cyan-300" />}
+                <span>{theme === "dark" ? "Light" : "Dark"}</span>
+              </button>
+            )}
           </div>
         </div>
 
