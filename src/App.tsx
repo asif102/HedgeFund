@@ -38,6 +38,8 @@ import {
   TrendingUp,
   Activity,
   Compass,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 function getTickerSymbol(target: string): string {
@@ -73,6 +75,15 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [loadingPhase, setLoadingPhase] = useState<number>(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof window === "undefined") return "dark";
+    return window.localStorage.getItem("quantum-alpha-theme") === "light" ? "light" : "dark";
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("quantum-alpha-theme", theme);
+  }, [theme]);
 
   // Backtest Strategy State (Selected via Agent Dossier or Research Card)
   const [backtestStrategy, setBacktestStrategy] =
@@ -266,7 +277,17 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col selection:bg-amber-500 selection:text-slate-950">
+    <div className={`min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col selection:bg-amber-500 selection:text-slate-950 ${theme === "light" ? "theme-light" : ""}`}>
+      <button
+        type="button"
+        onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+        className="fixed right-4 top-4 z-[200] flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/95 px-3 py-2 text-xs font-mono font-bold text-slate-200 shadow-lg backdrop-blur transition hover:border-amber-400 hover:text-white"
+        aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+        title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+      >
+        {theme === "dark" ? <Sun className="h-4 w-4 text-amber-300" /> : <Moon className="h-4 w-4 text-cyan-300" />}
+        <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+      </button>
       {/* 1. Top Agent Roster Header */}
       <AgentRosterHeader
         activeAgent={activeAgentFilter}
