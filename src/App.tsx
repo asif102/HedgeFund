@@ -354,8 +354,8 @@ export default function App() {
 
       {/* 5. Main Navigation Tabs */}
       <div className="border-b border-slate-800 bg-slate-900/50 relative z-30 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between overflow-x-auto scrollbar-none py-1">
-          <nav className="flex space-x-1 sm:space-x-2">
+        <div className="max-w-7xl mx-auto px-3 py-2 sm:px-6">
+          <nav className="grid w-full grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:items-center lg:gap-2 [&>button]:min-w-0 [&>button]:justify-start [&>button]:border [&>button]:border-slate-800 [&>button]:rounded-lg [&>button]:whitespace-normal lg:[&>button]:whitespace-nowrap">
             {/* Tab: Swarm Terminal ("The Lens") */}
             <button
               id="tab-swarm"
@@ -599,6 +599,7 @@ export default function App() {
               <SwarmLensAnimation
                 quote={marketQuote}
                 committee={swarmCommittee}
+                theme={theme}
                 currentTarget={currentAnalysis.target}
                 onNavigateToAgent={(agentId) => {
                   setActiveAgentFilter(agentId as any);
@@ -614,6 +615,7 @@ export default function App() {
               <SwarmLensAnimation
                 quote={marketQuote}
                 committee={swarmCommittee}
+                theme={theme}
                 currentTarget={currentAnalysis.target}
                 onNavigateToAgent={(agentId) => {
                   setActiveAgentFilter(agentId as any);

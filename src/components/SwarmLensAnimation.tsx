@@ -79,6 +79,7 @@ interface SwarmActivityLog {
 interface SwarmLensAnimationProps {
   quote?: MarketQuote;
   committee?: SwarmCommitteeResult | null;
+  theme?: "dark" | "light";
   currentTarget?: string;
   onNavigateToAgent?: (agentId: string) => void;
   onNavigateToTab?: (tab: "memorandum" | "phase1" | "phase2" | "backtester" | "scenarios" | "news") => void;
@@ -87,6 +88,7 @@ interface SwarmLensAnimationProps {
 export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
   quote,
   committee,
+  theme = "dark",
   currentTarget = "NVDA (NVIDIA Corporation)",
   onNavigateToAgent,
   onNavigateToTab,
@@ -386,6 +388,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    const isLightTheme = theme === "light";
 
     let resizeTimer: any;
     const handleResize = () => {
@@ -411,6 +414,8 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
       const height = rect?.height || 560;
 
       ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = isLightTheme ? "#ffffff" : "#050811";
+      ctx.fillRect(0, 0, width, height);
 
       const centerX = width / 2;
       const centerY = height / 2;
@@ -418,7 +423,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
 
       // 1. Draw subtle radar grid background
       ctx.save();
-      ctx.strokeStyle = "rgba(30, 41, 59, 0.4)";
+      ctx.strokeStyle = isLightTheme ? "rgba(148, 163, 184, 0.38)" : "rgba(30, 41, 59, 0.4)";
       ctx.lineWidth = 1;
 
       // Concentric range circles
@@ -429,7 +434,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
       });
 
       // Crosshairs
-      ctx.strokeStyle = "rgba(51, 65, 85, 0.25)";
+      ctx.strokeStyle = isLightTheme ? "rgba(100, 116, 139, 0.32)" : "rgba(51, 65, 85, 0.25)";
       ctx.setLineDash([4, 6]);
       ctx.beginPath();
       ctx.moveTo(centerX - baseRadius * 0.95, centerY);
@@ -472,7 +477,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
         const nextX = centerX + Math.cos(nextAgent.angle) * nextRad;
         const nextY = centerY + Math.sin(nextAgent.angle) * nextRad;
 
-        ctx.strokeStyle = "rgba(71, 85, 105, 0.25)";
+        ctx.strokeStyle = isLightTheme ? "rgba(100, 116, 139, 0.28)" : "rgba(71, 85, 105, 0.25)";
         ctx.lineWidth = 0.8;
         ctx.beginPath();
         ctx.moveTo(nodeX, nodeY);
@@ -597,8 +602,8 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
       ctx.fill();
 
       // Core Solid Glass Disc
-      ctx.fillStyle = "#090d16";
-      ctx.strokeStyle = lensHovered ? "#38bdf8" : "rgba(255, 255, 255, 0.85)";
+      ctx.fillStyle = isLightTheme ? "#f8fafc" : "#090d16";
+      ctx.strokeStyle = lensHovered ? "#38bdf8" : isLightTheme ? "#64748b" : "rgba(255, 255, 255, 0.85)";
       ctx.lineWidth = 3;
       ctx.shadowColor = "#38bdf8";
       ctx.shadowBlur = 20;
@@ -635,7 +640,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
       if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
       window.removeEventListener("resize", handleResize);
     };
-  }, [agents, isPlaying, speedMultiplier, selectedAgentId, lensHovered]);
+  }, [agents, isPlaying, speedMultiplier, selectedAgentId, lensHovered, theme]);
 
   // Timeline playback simulation
   useEffect(() => {
@@ -664,11 +669,12 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
   const activeSymbol = quote?.symbol || "NVDA";
   const activePrice = quote?.price || 218.29;
   const displayedPosterior = committee?.consensusScore ?? posteriorProbability;
+  const isLightTheme = theme === "light";
 
   return (
     <div
       ref={containerRef}
-      className={`relative w-full bg-[#050811] text-slate-100 rounded-xl border border-slate-800/80 shadow-2xl overflow-hidden font-mono select-none flex flex-col ${
+      className={`swarm-terminal relative w-full bg-[#050811] text-slate-100 rounded-xl border border-slate-800/80 shadow-2xl overflow-hidden font-mono select-none flex flex-col ${
         isFullscreen ? "fixed inset-0 z-50 rounded-none border-none" : "min-h-[920px]"
       }`}
     >
@@ -787,17 +793,17 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
       {/* ========================================================================= */}
       {/* 3. MAIN INTERACTIVE CENTRAL STAGE ("THE LENS" VISUALIZATION CANVAS)      */}
       {/* ========================================================================= */}
-      <div className="relative flex-1 min-h-[540px] lg:min-h-[600px] w-full flex items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_center,rgba(14,165,233,0.08),transparent_38%),linear-gradient(180deg,#050811,#02040a)]">
+      <div className="swarm-stage relative flex-1 min-h-[540px] lg:min-h-[600px] w-full flex items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_center,rgba(14,165,233,0.08),transparent_38%),linear-gradient(180deg,#050811,#02040a)]">
         {/* Background HTML5 Canvas (Splines, Particles, Shockwaves, Core) */}
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full cursor-crosshair"
+          className="swarm-terminal-canvas absolute inset-0 w-full h-full cursor-crosshair"
           onMouseEnter={() => setLensHovered(true)}
           onMouseLeave={() => setLensHovered(false)}
         />
 
         {/* LEFT OVERLAY: Order Book Depth Ladder (Matching Vertical Green/Red Bars in Image) */}
-        <div className="absolute left-3 top-4 bottom-4 w-44 pointer-events-none hidden md:flex flex-col justify-between rounded-lg border border-slate-800/70 bg-[#050811]/90 px-2 py-2 text-[10px] font-mono backdrop-blur-sm z-10">
+        <div className="swarm-side-panel absolute left-3 top-4 bottom-4 w-44 pointer-events-none hidden md:flex flex-col justify-between rounded-lg border border-slate-800/70 bg-[#050811]/90 px-2 py-2 text-[10px] font-mono backdrop-blur-sm z-10">
           <div className="space-y-1">
             <div className="flex items-center justify-between text-slate-400 border-b border-slate-800/80 pb-1">
               <span className="flex items-center gap-1 text-slate-300 font-bold">
@@ -866,7 +872,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
         </div>
 
         {/* RIGHT OVERLAY: Strike Pricing / Odds Spectrum (Matching Right Side in Image) */}
-        <div className="absolute right-3 top-4 bottom-4 w-44 pointer-events-none hidden md:flex flex-col justify-between rounded-lg border border-slate-800/70 bg-[#050811]/90 px-2 py-2 text-[10px] font-mono backdrop-blur-sm z-10 text-right">
+        <div className="swarm-side-panel absolute right-3 top-4 bottom-4 w-44 pointer-events-none hidden md:flex flex-col justify-between rounded-lg border border-slate-800/70 bg-[#050811]/90 px-2 py-2 text-[10px] font-mono backdrop-blur-sm z-10 text-right">
           <div className="space-y-1">
             <div className="flex items-center justify-between text-slate-400 border-b border-slate-800/80 pb-1">
               <span className="text-[9px] text-purple-400">FAIR ODDS</span>
@@ -943,7 +949,7 @@ export const SwarmLensAnimation: React.FC<SwarmLensAnimationProps> = ({
               <div
                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border backdrop-blur-md shadow-xl"
                 style={{
-                  backgroundColor: isSelected ? "#0f172a" : "#090d16eb",
+                  backgroundColor: isLightTheme ? (isSelected ? "#e2e8f0" : "#ffffffeb") : isSelected ? "#0f172a" : "#090d16eb",
                   borderColor: isSelected ? agent.color : agent.borderColor + "80",
                   boxShadow: isSelected ? `0 0 20px ${agent.color}55` : "0 4px 14px rgba(0,0,0,0.6)",
                 }}

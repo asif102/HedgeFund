@@ -192,7 +192,7 @@ export const AgentRosterHeader: React.FC<AgentRosterHeaderProps> = ({
         </div>
 
         {/* Visible interactive agent roster */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 pt-3">
+        <div className="scrollbar-thin flex w-full min-w-0 gap-2 overflow-x-auto overscroll-x-contain pb-2 pt-3">
           {AGENT_ROSTER.map((agent) => {
             const isSelected = activeAgent === agent.id;
             const strategy = AGENT_STRATEGY_MAP[agent.id];
@@ -202,7 +202,7 @@ export const AgentRosterHeader: React.FC<AgentRosterHeaderProps> = ({
                 key={agent.id}
                 type="button"
                 onClick={() => handleOpenDossier(agent)}
-                className={`group rounded-lg border p-3 text-left transition-all cursor-pointer ${
+                className={`group w-[min(82vw,240px)] shrink-0 rounded-lg border p-3 text-left transition-all cursor-pointer sm:w-[220px] lg:w-[240px] ${
                   isSelected
                     ? "bg-slate-800/90 border-amber-500/60 ring-1 ring-amber-500/30"
                     : "bg-slate-900/70 border-slate-800 hover:border-amber-500/50 hover:bg-slate-800/80"

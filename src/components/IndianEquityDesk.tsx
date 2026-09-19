@@ -439,16 +439,16 @@ export const IndianEquityDesk: React.FC<IndianEquityDeskProps> = ({
 
         {selectedTijoriCompany && isTijoriOverviewOpen && (
           <div
-            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-black/80 p-2 backdrop-blur-sm sm:items-center sm:p-4"
             onClick={(event) => {
               if (event.target === event.currentTarget) setIsTijoriOverviewOpen(false);
             }}
           >
-            <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-cyan-500/40 bg-slate-950 shadow-2xl">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-800 p-5">
-                <div>
-                  <p className="text-[10px] font-mono uppercase tracking-wider text-cyan-300">Tijori Finance | Bird&apos;s-eye investment view</p>
-                  <h3 className="mt-1 text-xl font-bold text-white">{selectedTijoriCompany.name}</h3>
+            <div className="flex max-h-[calc(100dvh-1rem)] w-full max-w-5xl min-w-0 flex-col overflow-hidden rounded-xl border border-cyan-500/40 bg-slate-950 shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
+              <div className="flex min-w-0 items-start justify-between gap-3 border-b border-slate-800 p-3 sm:gap-4 sm:p-5">
+                <div className="min-w-0">
+                  <p className="text-[9px] font-mono uppercase tracking-wider text-cyan-300 sm:text-[10px]">Tijori Finance | Bird&apos;s-eye investment view</p>
+                  <h3 className="mt-1 break-words text-lg font-bold text-white sm:text-xl">{selectedTijoriCompany.name}</h3>
                   <p className="mt-1 text-xs font-mono text-slate-400">Fetched {new Date(selectedTijoriCompany.fetchedAt).toLocaleString()}</p>
                 </div>
                 <button type="button" onClick={() => setIsTijoriOverviewOpen(false)} className="rounded-lg border border-slate-700 bg-slate-800 p-2 text-slate-300 hover:text-white" aria-label="Close investment overview">
@@ -456,8 +456,8 @@ export const IndianEquityDesk: React.FC<IndianEquityDeskProps> = ({
                 </button>
               </div>
 
-              <div className="overflow-y-auto p-5 space-y-5">
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="min-w-0 space-y-4 overflow-y-auto overflow-x-hidden p-3 sm:space-y-5 sm:p-5">
+                <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
                   {[
                     ["Current price", selectedTijoriCompany.currentPrice],
                     ["Market cap", selectedTijoriCompany.marketCap],
@@ -473,9 +473,9 @@ export const IndianEquityDesk: React.FC<IndianEquityDeskProps> = ({
                     ["ROCE", selectedTijoriCompany.roce],
                     ["Debt / equity", selectedTijoriCompany.debtToEquity],
                   ].map(([label, value]) => (
-                    <div key={label} className="rounded-lg border border-slate-800 bg-slate-900 p-3">
+                    <div key={label} className="min-w-0 rounded-lg border border-slate-800 bg-slate-900 p-3">
                       <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">{label}</div>
-                      <div className="mt-1 text-sm font-bold text-white">{value}</div>
+                      <div className="mt-1 break-words text-sm font-bold text-white">{value}</div>
                     </div>
                   ))}
                 </div>
