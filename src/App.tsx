@@ -76,6 +76,15 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [loadingPhase, setLoadingPhase] = useState<number>(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof window === "undefined") return "dark";
+    return window.localStorage.getItem("quantum-alpha-theme") === "light" ? "light" : "dark";
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("quantum-alpha-theme", theme);
+  }, [theme]);
 
   // Backtest Strategy State (Selected via Agent Dossier or Research Card)
   const [backtestStrategy, setBacktestStrategy] =
@@ -287,7 +296,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col selection:bg-amber-500 selection:text-slate-950">
+    <div className={`min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col selection:bg-amber-500 selection:text-slate-950 ${theme === "light" ? "theme-light" : ""}`}>
       {/* 1. Top Agent Roster Header */}
       <AgentRosterHeader
         activeAgent={activeAgentFilter}
@@ -302,6 +311,8 @@ export default function App() {
         currentSymbol={activeTicker}
         onRunAgentStrategy={handleRunAgentStrategy}
         onNavigateTab={(tab) => setActiveTab(tab)}
+        theme={theme}
+        onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
       />
 
       {/* 2. Target Search Bar & System Prompt Initialization Banner */}

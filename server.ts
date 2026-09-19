@@ -9,7 +9,7 @@ import { buildFinvizSectorRotationPayload } from "./src/data/finvizSectorData";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT || 3000);
 
 app.use(express.json({ limit: "5mb" }));
 
@@ -156,6 +156,48 @@ app.get("/api/commodities", async (_req, res) => {
       })),
     });
   }
+});
+app.post("/api/swarm/committee", (req, res) => {
+  const quote = req.body?.quote;
+  if (!quote || typeof quote.price !== "number") {
+    res.status(400).json({ ok: false, error: "A verified market quote is required." });
+    return;
+  }
+
+  const price = quote.price as number;
+  const changePercent = Number(quote.changePercent || 0);
+  const peRatio = Number(quote.peRatio || 0);
+  const high = Number(quote.week52High || price);
+  const low = Number(quote.week52Low || price);
+  const rangePosition = high > low ? ((price - low) / (high - low)) * 100 : 50;
+  const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
+  const stance = (score: number): "BULLISH" | "NEUTRAL" | "BEARISH" =>
+    score >= 65 ? "BULLISH" : score <= 40 ? "BEARISH" : "NEUTRAL";
+  const symbol = String(quote.symbol || "UNKNOWN");
+  const agentInputs = [
+    ["equityAnalyst", "Elena Rostova", "Valuation / trend", peRatio ? `${peRatio.toFixed(1)}x P/E` : "P/E n/a", 50 + changePercent * 5 + (rangePosition - 50) * 0.35 - (peRatio > 60 ? 15 : peRatio > 35 ? 7 : 0), [`${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}% latest move`, `${rangePosition.toFixed(0)}% of the 52-week range`, peRatio ? `P/E of ${peRatio.toFixed(1)}x used in valuation penalty` : "P/E unavailable"]],
+    ["cto", "Dr. Aris Thorne", "Momentum signal", `${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}%`, 50 + changePercent * 8 + (rangePosition > 70 ? 12 : rangePosition < 30 ? -12 : 0), ["Momentum contribution is price-derived", `Price location: ${rangePosition.toFixed(0)}% of annual range`, "No technology claim without company data"]],
+    ["macroStrategist", "Henrik Lindqvist", "Regime score", `${rangePosition.toFixed(0)}/100`, 55 + (changePercent >= 0 ? 5 : -8) + (rangePosition > 80 ? 5 : rangePosition < 20 ? -10 : 0), [`52-week positioning: ${rangePosition.toFixed(0)}/100`, `Tape direction: ${changePercent >= 0 ? "risk-on" : "risk-off"}`, "Macro score is price-derived"]],
+    ["cro", "Rachel Stern", "Risk-adjusted score", `${clamp(100 - Math.abs(changePercent) * 10)}/100`, 58 - Math.abs(changePercent) * 6 - (rangePosition > 90 ? 12 : 0), [`Absolute move risk: ${Math.abs(changePercent).toFixed(2)}%`, rangePosition > 90 ? "Near 52-week high; re-rating risk elevated" : "Not at an extreme 52-week high", "Position sizing should reflect quote uncertainty"]],
+    ["cio", "Dr. Marcus Vance", "Allocation score", "Independent synthesis", 50 + changePercent * 4 + (rangePosition - 50) * 0.2, ["CIO score is calculated independently", "Requires corroboration from all other lenses"]],
+  ] as const;
+  const agents = agentInputs.map(([agentId, agentName, metricLabel, metricValue, rawScore, evidence]) => {
+    const score = clamp(rawScore);
+    return { agentId, agentName, mandate: metricLabel, score, stance: stance(score), metricLabel, metricValue, evidence };
+  });
+  const consensusScore = clamp(agents.reduce((sum, agent) => sum + agent.score, 0) / agents.length);
+  res.json({
+    ok: true,
+    result: {
+      symbol,
+      price,
+      consensusScore,
+      consensusStance: stance(consensusScore),
+      agents,
+      calculatedAt: new Date().toISOString(),
+      methodology: "Five independent deterministic lenses over the same live quote; scores are auditable and non-random.",
+    },
+  });
 });
 
 // Live Market Data Feed Endpoint
