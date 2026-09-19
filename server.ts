@@ -42,109 +42,120 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-// Independent, auditable swarm calculations. Each agent uses a separate lens
-// over the same verified quote; no random values or shared score are used.
-app.post("/api/swarm/committee", (req, res) => {
-  const quote = req.body?.quote;
-  if (!quote || typeof quote.price !== "number") {
-    res.status(400).json({ ok: false, error: "A verified market quote is required." });
-    return;
+const commodityConfig = [
+  { name: "Gold", symbol: "GC=F", category: "Metals" },
+  { name: "Silver", symbol: "SI=F", category: "Metals" },
+  { name: "Crude Oil", symbol: "CL=F", category: "Energy" },
+  { name: "Natural Gas", symbol: "NG=F", category: "Energy" },
+  { name: "Copper", symbol: "HG=F", category: "Metals" },
+  { name: "Wheat", symbol: "ZW=F", category: "Agriculture" },
+] as const;
+
+const commodityFallbacks: Record<string, { price: number; change: number; changePct: number; range: string; volume: string; insight: string }> = {
+  Gold: { price: 2468.4, change: 18.6, changePct: 0.76, range: "$2,446 - $2,475", volume: "18.2k contracts", insight: "Gold remains supported by softer real yields and persistent central-bank demand, while resistance is clustering near the recent highs." },
+  Silver: { price: 29.23, change: 0.42, changePct: 1.46, range: "$28.60 - $29.70", volume: "11.4k contracts", insight: "Silver is outperforming gold on a relative basis as industrial demand and inflation hedging remain constructive." },
+  "Crude Oil": { price: 74.68, change: -0.91, changePct: -1.2, range: "$73.30 - $76.10", volume: "22.8k contracts", insight: "Oil is trading in a softer range as supply expectations normalize and demand growth remains uneven across regions." },
+  "Natural Gas": { price: 2.81, change: 0.07, changePct: 2.56, range: "$2.60 - $2.92", volume: "9.1k contracts", insight: "Weather-driven supply tightness continues to support gas prices, though volatility remains elevated as storage signals shift." },
+  Copper: { price: 4.64, change: 0.08, changePct: 1.75, range: "$4.52 - $4.71", volume: "7.3k contracts", insight: "Copper remains constructive on infrastructure and electrification demand, with the market watching Chinese industrial signals closely." },
+  Wheat: { price: 607.5, change: -4.2, changePct: -0.69, range: "$600.20 - $617.40", volume: "5.6k contracts", insight: "Wheat is under mild pressure from improving crop conditions, but export and weather risks keep the risk premium in place." },
+};
+
+async function fetchCommodityQuote(symbol: string, timeoutMs = 5000): Promise<{
+  price: number;
+  change: number;
+  changePct: number;
+  volume: number;
+  high: number;
+  low: number;
+  previousClose: number;
+} | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "application/json",
+      },
+    });
+    clearTimeout(timer);
+
+    if (!response.ok) return null;
+
+    const body = await response.json();
+    const meta = body?.chart?.result?.[0]?.meta;
+    if (!meta || typeof meta.regularMarketPrice !== "number") return null;
+
+    const price = meta.regularMarketPrice;
+    const previousClose = meta.chartPreviousClose || meta.previousClose || price;
+    const change = Number((price - previousClose).toFixed(2));
+    const changePct = Number(((change / previousClose) * 100).toFixed(2));
+    const volume = Number(meta.regularMarketVolume || 0);
+    const high = Number(meta.regularMarketDayHigh || price);
+    const low = Number(meta.regularMarketDayLow || price);
+
+    return { price, change, changePct, volume, high, low, previousClose };
+  } catch {
+    return null;
   }
+}
 
-  const price = quote.price as number;
-  const changePercent = Number(quote.changePercent || 0);
-  const peRatio = Number(quote.peRatio || 0);
-  const week52High = Number(quote.week52High || price);
-  const week52Low = Number(quote.week52Low || price);
-  const rangePosition = week52High > week52Low
-    ? ((price - week52Low) / (week52High - week52Low)) * 100
-    : 50;
-  const leverageScore = Number(quote.marketCap) > 0 ? 70 : 50;
-  const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
-  const stance = (score: number): "BULLISH" | "NEUTRAL" | "BEARISH" =>
-    score >= 65 ? "BULLISH" : score <= 40 ? "BEARISH" : "NEUTRAL";
-  const symbol = String(quote.symbol || "UNKNOWN");
+app.get("/api/commodities", async (_req, res) => {
+  try {
+    const items = await Promise.all(
+      commodityConfig.map(async ({ name, symbol, category }) => {
+        const quote = await fetchCommodityQuote(symbol);
+        const fallback = commodityFallbacks[name];
 
-  const agents = [
-    {
-      agentId: "equityAnalyst",
-      agentName: "Elena Rostova",
-      mandate: "Price, valuation, and trend evidence",
-      score: clamp(50 + changePercent * 5 + (rangePosition - 50) * 0.35 - (peRatio > 60 ? 15 : peRatio > 35 ? 7 : 0)),
-      metricLabel: "Valuation / trend",
-      metricValue: `${peRatio ? `${peRatio.toFixed(1)}x P/E` : "P/E n/a"}`,
-      evidence: [
-        `${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}% latest move`,
-        `${rangePosition.toFixed(0)}% of the 52-week range`,
-        peRatio ? `P/E of ${peRatio.toFixed(1)}x used in valuation penalty` : "P/E unavailable; valuation confidence reduced",
-      ],
-    },
-    {
-      agentId: "cto",
-      agentName: "Dr. Aris Thorne",
-      mandate: "Momentum persistence and execution signal",
-      score: clamp(50 + changePercent * 8 + (rangePosition > 70 ? 12 : rangePosition < 30 ? -12 : 0)),
-      metricLabel: "Momentum signal",
-      metricValue: `${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}%`,
-      evidence: [
-        `Momentum contribution: ${changePercent >= 0 ? "positive" : "negative"}`,
-        `Price location: ${rangePosition.toFixed(0)}% of annual range`,
-        "No technology-specific claim made without company data",
-      ],
-    },
-    {
-      agentId: "macroStrategist",
-      agentName: "Henrik Lindqvist",
-      mandate: "Market regime and downside context",
-      score: clamp(55 + (changePercent >= 0 ? 5 : -8) + (rangePosition > 80 ? 5 : rangePosition < 20 ? -10 : 0)),
-      metricLabel: "Regime score",
-      metricValue: `${rangePosition.toFixed(0)}/100`,
-      evidence: [
-        `52-week positioning: ${rangePosition.toFixed(0)}/100`,
-        `Tape direction: ${changePercent >= 0 ? "risk-on" : "risk-off"}`,
-        "Macro score is price-derived, not a fabricated macro forecast",
-      ],
-    },
-    {
-      agentId: "cro",
-      agentName: "Rachel Stern",
-      mandate: "Capital preservation and risk controls",
-      score: clamp(58 - Math.abs(changePercent) * 6 - (rangePosition > 90 ? 12 : 0) + (leverageScore > 60 ? 5 : -5)),
-      metricLabel: "Risk-adjusted score",
-      metricValue: `${clamp(100 - Math.abs(changePercent) * 10)}/100`,
-      evidence: [
-        `Absolute move risk: ${Math.abs(changePercent).toFixed(2)}%`,
-        rangePosition > 90 ? "Near 52-week high; re-rating risk elevated" : "Not at an extreme 52-week high",
-        "Position sizing should be reduced when quote confidence is incomplete",
-      ],
-    },
-    {
-      agentId: "cio",
-      agentName: "Dr. Marcus Vance",
-      mandate: "Independent allocation synthesis",
-      score: clamp(50 + changePercent * 4 + (rangePosition - 50) * 0.2),
-      metricLabel: "Allocation score",
-      metricValue: "Awaiting committee",
-      evidence: [
-        "CIO score is calculated independently before consensus aggregation",
-        "Requires corroboration from valuation, momentum, macro, and risk lenses",
-      ],
-    },
-  ].map((agent) => ({ ...agent, stance: stance(agent.score) }));
+        if (!quote) {
+          return {
+            name,
+            symbol,
+            category,
+            ...fallback,
+            status: "fallback",
+          };
+        }
 
-  const consensusScore = clamp(agents.reduce((sum, agent) => sum + agent.score, 0) / agents.length);
-  res.json({
-    ok: true,
-    result: {
-      symbol,
-      price,
-      consensusScore,
-      consensusStance: stance(consensusScore),
-      agents,
-      calculatedAt: new Date().toISOString(),
-      methodology: "Five independent deterministic lenses over the same live quote; scores are auditable and non-random.",
-    },
-  });
+        const range = `$${quote.low.toFixed(2)} - $${quote.high.toFixed(2)}`;
+        const volumeLabel = `${(quote.volume / 1000).toFixed(1)}k contracts`;
+
+        return {
+          name,
+          symbol,
+          category,
+          price: quote.price,
+          change: quote.change,
+          changePct: quote.changePct,
+          range,
+          volume: volumeLabel,
+          insight: fallback.insight,
+          status: "live",
+        };
+      })
+    );
+
+    res.json({
+      ok: true,
+      items,
+      source: "Yahoo Finance",
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      ok: false,
+      error: error?.message || "Failed to fetch commodity market data",
+      items: Object.entries(commodityFallbacks).map(([name, fallback]) => ({
+        name,
+        symbol: commodityConfig.find((item) => item.name === name)?.symbol ?? name,
+        category: commodityConfig.find((item) => item.name === name)?.category ?? "Metals",
+        ...fallback,
+        status: "fallback",
+      })),
+    });
+  }
 });
 
 // Live Market Data Feed Endpoint
@@ -435,7 +446,174 @@ interface IndianMarketCacheItem {
   timestamp: number;
 }
 let indianMarketCache: IndianMarketCacheItem | null = null;
+let indianTijoriScreenerCache: IndianMarketCacheItem | null = null;
 const INDIAN_CACHE_TTL_MS = 8000; // 8 seconds cache for fresh live exchange data
+const INDIAN_TIJORI_CACHE_TTL_MS = 5 * 60 * 1000;
+
+const TIJORI_VALUE_FALLBACK = [
+  {
+    symbol: "COALINDIA.NS",
+    name: "Coal India Ltd",
+    sector: "Energy",
+    cmp: 496.8,
+    peRatio: 6.9,
+    pbRatio: 2.1,
+    roePercent: 30.4,
+    debtToEquity: 0.05,
+    marketCapCr: 306050,
+    valueScore: 87,
+    valueRationale: "Single-digit P/E with high cash generation and strong ROE profile.",
+    sourceUrl: "https://www.tijori.com/stocks/COALINDIA",
+  },
+  {
+    symbol: "POWERGRID.NS",
+    name: "Power Grid Corporation of India Ltd",
+    sector: "Utilities",
+    cmp: 352.4,
+    peRatio: 15.1,
+    pbRatio: 2.4,
+    roePercent: 17.8,
+    debtToEquity: 1.15,
+    marketCapCr: 327860,
+    valueScore: 79,
+    valueRationale: "Defensive utility franchise with stable return ratios and predictable cash flows.",
+    sourceUrl: "https://www.tijori.com/stocks/POWERGRID",
+  },
+  {
+    symbol: "NTPC.NS",
+    name: "NTPC Ltd",
+    sector: "Utilities",
+    cmp: 422.6,
+    peRatio: 14.4,
+    pbRatio: 2.2,
+    roePercent: 15.6,
+    debtToEquity: 1.32,
+    marketCapCr: 409330,
+    valueScore: 76,
+    valueRationale: "Reasonable valuation with visible earnings and regulated growth capex.",
+    sourceUrl: "https://www.tijori.com/stocks/NTPC",
+  },
+  {
+    symbol: "BPCL.NS",
+    name: "Bharat Petroleum Corporation Ltd",
+    sector: "Oil & Gas",
+    cmp: 379.2,
+    peRatio: 8.4,
+    pbRatio: 1.5,
+    roePercent: 19.1,
+    debtToEquity: 0.83,
+    marketCapCr: 164430,
+    valueScore: 82,
+    valueRationale: "Low earnings multiple and improved balance sheet vs prior down-cycle.",
+    sourceUrl: "https://www.tijori.com/stocks/BPCL",
+  },
+  {
+    symbol: "BANKBARODA.NS",
+    name: "Bank of Baroda",
+    sector: "Financial Services",
+    cmp: 284.7,
+    peRatio: 6.8,
+    pbRatio: 1.1,
+    roePercent: 16.9,
+    debtToEquity: 0.0,
+    marketCapCr: 147240,
+    valueScore: 84,
+    valueRationale: "Attractive P/B and P/E combination with improving return metrics.",
+    sourceUrl: "https://www.tijori.com/stocks/BANKBARODA",
+  },
+];
+
+function parseNumericText(input: string | null | undefined): number | null {
+  if (!input) return null;
+  const cleaned = input
+    .replace(/,/g, "")
+    .replace(/₹/g, "")
+    .replace(/%/g, "")
+    .replace(/x$/i, "")
+    .trim();
+  const parsed = cleaned.match(/^(-?\d+(?:\.\d+)?)(?:\s*(k|m|b|l|lac|lakh|cr|crore))?$/i);
+  if (!parsed) return null;
+  const base = Number(parsed[1]);
+  if (!Number.isFinite(base)) return null;
+  const unit = (parsed[2] || "").toLowerCase();
+  const multipliers: Record<string, number> = {
+    k: 1_000,
+    m: 1_000_000,
+    b: 1_000_000_000,
+    l: 100_000,
+    lac: 100_000,
+    lakh: 100_000,
+    cr: 10_000_000,
+    crore: 10_000_000,
+  };
+  return base * (multipliers[unit] || 1);
+}
+
+function computeValueScore(peRatio: number, pbRatio: number, roePercent: number, debtToEquity: number): number {
+  const peScore = Math.max(0, Math.min(40, (25 - peRatio) * 2));
+  const pbScore = Math.max(0, Math.min(25, (3 - pbRatio) * 8));
+  const roeScore = Math.max(0, Math.min(25, roePercent));
+  const debtScore = Math.max(0, Math.min(10, (2 - debtToEquity) * 5));
+  return Math.round(peScore + pbScore + roeScore + debtScore);
+}
+
+function parseTijoriScreenerRows(html: string): Array<{
+  symbol: string;
+  name: string;
+  sector: string;
+  cmp: number;
+  peRatio: number;
+  pbRatio: number;
+  roePercent: number;
+  debtToEquity: number;
+  marketCapCr: number;
+}> {
+  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  const rows: Array<{
+    symbol: string;
+    name: string;
+    sector: string;
+    cmp: number;
+    peRatio: number;
+    pbRatio: number;
+    roePercent: number;
+    debtToEquity: number;
+    marketCapCr: number;
+  }> = [];
+
+  let rowMatch: RegExpExecArray | null;
+  while ((rowMatch = rowRegex.exec(html)) !== null) {
+    const row = rowMatch[1];
+    const textCells = Array.from(row.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi))
+      .map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+    if (textCells.length < 8) continue;
+
+    const symbolRaw = textCells[0];
+    const cmp = parseNumericText(textCells[2]);
+    const pe = parseNumericText(textCells[3]);
+    const pb = parseNumericText(textCells[4]);
+    const roe = parseNumericText(textCells[5]);
+    const debtEq = parseNumericText(textCells[6]);
+    const mcap = parseNumericText(textCells[7]);
+
+    if (!symbolRaw || cmp === null || pe === null || pb === null || roe === null || debtEq === null || mcap === null) continue;
+
+    rows.push({
+      symbol: symbolRaw.toUpperCase().replace(/[^A-Z0-9]/g, ""),
+      name: textCells[1] || symbolRaw,
+      sector: textCells[8] || "Diversified",
+      cmp,
+      peRatio: pe,
+      pbRatio: pb,
+      roePercent: roe,
+      debtToEquity: debtEq,
+      marketCapCr: mcap,
+    });
+  }
+
+  return rows;
+}
 
 // Fast helper to fetch real-time chart data from Yahoo Finance gateway
 async function fetchIndianExchangeQuote(symbol: string, timeoutMs = 3000): Promise<{
@@ -1168,6 +1346,106 @@ app.get("/api/india/market", async (req, res) => {
         { date: "Current Session", fiiNetCr: -1842.5, diiNetCr: 2410.8, totalNetCr: 568.3 },
       ],
     });
+  }
+});
+
+app.get("/api/india/tijori-value-screener", async (req, res) => {
+  const forceFresh = req.query.fresh === "1";
+  if (
+    !forceFresh &&
+    indianTijoriScreenerCache &&
+    Date.now() - indianTijoriScreenerCache.timestamp < INDIAN_TIJORI_CACHE_TTL_MS
+  ) {
+    res.json(indianTijoriScreenerCache.payload);
+    return;
+  }
+
+  const fallbackPayload = {
+    ok: false,
+    screenerName: "Tijori Value Screener (Curated Value Buying)",
+    source: "Tijori + Internal Value Curation",
+    parseStatus: "fallback_unavailable",
+    fetchedAt: new Date().toISOString(),
+    stocks: TIJORI_VALUE_FALLBACK,
+    usedFallback: true,
+  };
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4500);
+    let response: Response;
+    try {
+      response = await fetch("https://www.tijori.com/screener", {
+        signal: controller.signal,
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!response.ok) {
+      indianTijoriScreenerCache = { payload: fallbackPayload, timestamp: Date.now() };
+      res.json(fallbackPayload);
+      return;
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    const contentLength = Number(response.headers.get("content-length") || "0");
+    if (!contentType.toLowerCase().includes("text/html") || (contentLength > 0 && contentLength > 1_000_000)) {
+      indianTijoriScreenerCache = { payload: fallbackPayload, timestamp: Date.now() };
+      res.json(fallbackPayload);
+      return;
+    }
+
+    const html = await response.text();
+    if (html.length > 1_000_000) {
+      indianTijoriScreenerCache = { payload: fallbackPayload, timestamp: Date.now() };
+      res.json(fallbackPayload);
+      return;
+    }
+
+    const parsedRows = parseTijoriScreenerRows(html)
+      .filter((item) => item.peRatio > 0 && item.peRatio <= 20 && item.pbRatio > 0 && item.pbRatio <= 3.5)
+      .filter((item) => {
+        const isFinancial = /bank|financial|nbfc|insurance/i.test(item.sector);
+        return item.roePercent >= 12 && (isFinancial || item.debtToEquity <= 1.5);
+      })
+      .sort((a, b) => {
+        const aScore = computeValueScore(a.peRatio, a.pbRatio, a.roePercent, a.debtToEquity);
+        const bScore = computeValueScore(b.peRatio, b.pbRatio, b.roePercent, b.debtToEquity);
+        return bScore - aScore;
+      })
+      .slice(0, 10)
+      .map((item) => ({
+        ...item,
+        symbol: item.symbol.endsWith(".NS") ? item.symbol : `${item.symbol}.NS`,
+        valueScore: computeValueScore(item.peRatio, item.pbRatio, item.roePercent, item.debtToEquity),
+        valueRationale:
+          item.peRatio <= 12 && item.pbRatio <= 2
+            ? "Deep-value profile with strong balance-sheet and profitability support."
+            : "Reasonable valuation and profitability profile suitable for value accumulation.",
+        sourceUrl: `https://www.tijori.com/stocks/${item.symbol.replace(".NS", "")}`,
+      }));
+
+    const payload = {
+      ok: parsedRows.length > 0,
+      screenerName: "Tijori Value Screener (Curated Value Buying)",
+      source: parsedRows.length > 0 ? "Tijori Screener" : "Tijori + Internal Value Curation",
+      parseStatus: parsedRows.length > 0 ? "parsed" : "structure_mismatch_fallback",
+      fetchedAt: new Date().toISOString(),
+      stocks: parsedRows.length > 0 ? parsedRows : TIJORI_VALUE_FALLBACK,
+      usedFallback: parsedRows.length === 0,
+    };
+
+    indianTijoriScreenerCache = { payload, timestamp: Date.now() };
+    res.json(payload);
+  } catch {
+    indianTijoriScreenerCache = { payload: fallbackPayload, timestamp: Date.now() };
+    res.json(fallbackPayload);
   }
 });
 
